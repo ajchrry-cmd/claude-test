@@ -3833,7 +3833,7 @@
 
         function exportToExcel() {
             const filteredInspections = getFilteredInspections('report');
-            
+
             if (filteredInspections.length === 0) {
                 alert('No data to export');
                 return;
@@ -3842,6 +3842,7 @@
             try {
                 const wb = XLSX.utils.book_new();
 
+                // ========== SUMMARY SHEET ==========
                 const summaryData = [];
                 const total = filteredInspections.length;
                 const outstanding = filteredInspections.filter(i => i.status === 'OUTSTANDING').length;
@@ -3852,13 +3853,13 @@
                 summaryData.push(['DORM INSPECTION REPORT SUMMARY']);
                 summaryData.push([]);
                 summaryData.push(['Report Generated:', new Date().toLocaleString()]);
-                
+
                 const startDate = document.getElementById('report-start-date').value;
                 const endDate = document.getElementById('report-end-date').value;
                 if (startDate || endDate) {
                     summaryData.push(['Date Range:', `${startDate || 'Beginning'} to ${endDate || 'Present'}`]);
                 }
-                
+
                 summaryData.push([]);
                 summaryData.push(['STATISTICS']);
                 summaryData.push(['Total Inspections:', total]);
@@ -3868,7 +3869,7 @@
                 summaryData.push(['Pass Rate:', passRate + '%']);
 
                 const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
-                
+
                 wsSummary['!cols'] = [
                     { wch: 25 },
                     { wch: 30 }
@@ -3876,24 +3877,60 @@
 
                 XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
-                const detailsData = [];
-                
-                const headers = [
-                    'Room Number',
-                    'Shift',
-                    'Gender',
-                    'Date',
-                    'Inspector',
-                    'Regular Score',
-                    'Auto-Fail Score',
-                    'Total Score',
-                    'Status',
-                    'Regular Violations',
-                    'Auto-Failure Violations',
-                    'Notes'
-                ];
-                detailsData.push(headers);
+                // ========== VISUAL DEMERIT MATRIX SHEET ==========
+                const matrixData = [];
 
+                // Create header rows
+                const mainHeaders = ['Room', 'Shift', 'Gender', 'Date', 'Inspector', 'Score', 'Status'];
+
+                // Add shortened demerit names for column headers
+                const regularDemeritHeaders = [
+                    'Bed/341',
+                    'Mirror',
+                    'Vanity',
+                    'Tile/Carpet',
+                    'Odor',
+                    'Dust/Clutter',
+                    'Trash',
+                    'Appliances',
+                    'Shower Curtain',
+                    'Tub/Shower',
+                    'Mold',
+                    'Toilet',
+                    'Bath Tile/Towels'
+                ];
+
+                const autoFailHeaders = [
+                    'HAZMAT',
+                    'Wall Locker',
+                    'Valuables',
+                    'Medications',
+                    'Tobacco',
+                    'Perishables',
+                    'Contraband',
+                    'Safety/Window',
+                    'To-Go Box'
+                ];
+
+                // Combine all headers
+                const allHeaders = [...mainHeaders, '|', ...regularDemeritHeaders, '||', ...autoFailHeaders, '||', 'Notes'];
+                matrixData.push(allHeaders);
+
+                // Add a subheader row to show section labels
+                const subHeaders = [
+                    '', '', '', '', '', '', '',  // Main info columns
+                    '',  // Separator
+                    ...Array(regularDemeritHeaders.length).fill(''),  // Regular demerits
+                    '',  // Separator
+                    ...Array(autoFailHeaders.length).fill(''),  // Auto-fail demerits
+                    '',  // Separator
+                    ''   // Notes
+                ];
+                subHeaders[7] = '--- REGULAR DEMERITS ---';
+                subHeaders[7 + regularDemeritHeaders.length + 1] = '--- AUTO-FAIL DEMERITS (4pts each) ---';
+                matrixData.push(subHeaders);
+
+                // Add data rows
                 filteredInspections.forEach(inspection => {
                     const props = roomProperties[inspection.roomNumber] || {};
                     const row = [
@@ -3901,83 +3938,73 @@
                         props.shift || '',
                         props.gender || '',
                         inspection.inspectionDate,
-                        inspection.inspectorName || 'Not specified',
-                        inspection.regularScore || 0,
-                        inspection.autoFailureScore || 0,
+                        inspection.inspectorName || '',
                         inspection.score,
-                        inspection.status,
-                        inspection.demerits ? inspection.demerits.join(', ') : '',
-                        inspection.autoFailureDemerits ? inspection.autoFailureDemerits.join(', ') : '',
-                        inspection.notes || ''
+                        inspection.status
                     ];
-                    detailsData.push(row);
+
+                    // Add separator
+                    row.push('');
+
+                    // Add X marks for regular demerits
+                    demerits.forEach(demerit => {
+                        const hasDemerit = inspection.demerits && inspection.demerits.includes(demerit);
+                        row.push(hasDemerit ? 'X' : '');
+                    });
+
+                    // Add separator
+                    row.push('');
+
+                    // Add X marks for auto-failure demerits
+                    autoFailureDemerits.forEach(demerit => {
+                        const hasDemerit = inspection.autoFailureDemerits && inspection.autoFailureDemerits.includes(demerit);
+                        row.push(hasDemerit ? 'X' : '');
+                    });
+
+                    // Add separator and notes
+                    row.push('');
+                    row.push(inspection.notes || '');
+
+                    matrixData.push(row);
                 });
 
-                const wsDetails = XLSX.utils.aoa_to_sheet(detailsData);
-                
-                wsDetails['!cols'] = [
-                    { wch: 12 },
-                    { wch: 8 },
-                    { wch: 10 },
-                    { wch: 12 },
-                    { wch: 15 },
-                    { wch: 14 },
-                    { wch: 14 },
-                    { wch: 12 },
-                    { wch: 12 },
-                    { wch: 40 },
-                    { wch: 40 },
-                    { wch: 30 }
+                const wsMatrix = XLSX.utils.aoa_to_sheet(matrixData);
+
+                // Set column widths
+                const matrixCols = [
+                    { wch: 8 },   // Room
+                    { wch: 6 },   // Shift
+                    { wch: 8 },   // Gender
+                    { wch: 12 },  // Date
+                    { wch: 12 },  // Inspector
+                    { wch: 6 },   // Score
+                    { wch: 12 },  // Status
+                    { wch: 2 }    // Separator
                 ];
 
-                XLSX.utils.book_append_sheet(wb, wsDetails, 'Detailed Inspections');
+                // Add columns for regular demerits
+                for (let i = 0; i < regularDemeritHeaders.length; i++) {
+                    matrixCols.push({ wch: 8 });
+                }
+                matrixCols.push({ wch: 2 }); // Separator
 
-                const violationsData = [];
-                violationsData.push(['VIOLATIONS BREAKDOWN']);
-                violationsData.push([]);
-                violationsData.push(['Room', 'Date', 'Inspector', 'Violation Type', 'Violation']);
+                // Add columns for auto-fail demerits
+                for (let i = 0; i < autoFailHeaders.length; i++) {
+                    matrixCols.push({ wch: 10 });
+                }
+                matrixCols.push({ wch: 2 }); // Separator
 
-                filteredInspections.forEach(inspection => {
-                    if (inspection.demerits && inspection.demerits.length > 0) {
-                        inspection.demerits.forEach(demerit => {
-                            violationsData.push([
-                                inspection.roomNumber,
-                                inspection.inspectionDate,
-                                inspection.inspectorName || 'Not specified',
-                                'Regular',
-                                demerit
-                            ]);
-                        });
-                    }
-                    
-                    if (inspection.autoFailureDemerits && inspection.autoFailureDemerits.length > 0) {
-                        inspection.autoFailureDemerits.forEach(demerit => {
-                            violationsData.push([
-                                inspection.roomNumber,
-                                inspection.inspectionDate,
-                                inspection.inspectorName || 'Not specified',
-                                'AUTO-FAILURE',
-                                demerit
-                            ]);
-                        });
-                    }
-                });
+                matrixCols.push({ wch: 30 }); // Notes
 
-                const wsViolations = XLSX.utils.aoa_to_sheet(violationsData);
-                wsViolations['!cols'] = [
-                    { wch: 12 },
-                    { wch: 12 },
-                    { wch: 15 },
-                    { wch: 15 },
-                    { wch: 50 }
-                ];
+                wsMatrix['!cols'] = matrixCols;
 
-                XLSX.utils.book_append_sheet(wb, wsViolations, 'Violations Breakdown');
+                XLSX.utils.book_append_sheet(wb, wsMatrix, 'Visual Demerit Matrix');
 
+                // ========== INSPECTOR PERFORMANCE SHEET ==========
                 const inspectorData = [];
                 inspectorData.push(['INSPECTOR PERFORMANCE ANALYSIS']);
                 inspectorData.push([]);
-                inspectorData.push(['Inspector', 'Total Inspections', 'Passed', 'Failed', 'Failure Rate %', 'Avg Score', 'Unique Rooms']);
+                inspectorData.push(['Inspector', 'Total Inspections', 'Outstanding', 'Passed', 'Failed', 'Pass Rate %', 'Avg Score', 'Unique Rooms']);
 
                 const inspectorStats = {};
                 filteredInspections.forEach(inspection => {
@@ -3985,19 +4012,22 @@
                     if (!inspectorStats[inspector]) {
                         inspectorStats[inspector] = {
                             total: 0,
+                            outstanding: 0,
                             passed: 0,
                             failed: 0,
                             totalScore: 0,
                             rooms: new Set()
                         };
                     }
-                    
+
                     const stats = inspectorStats[inspector];
                     stats.total++;
                     stats.totalScore += inspection.score;
                     stats.rooms.add(inspection.roomNumber);
-                    
-                    if (inspection.status === 'PASSED' || inspection.status === 'OUTSTANDING') {
+
+                    if (inspection.status === 'OUTSTANDING') {
+                        stats.outstanding++;
+                    } else if (inspection.status === 'PASSED') {
                         stats.passed++;
                     } else {
                         stats.failed++;
@@ -4006,15 +4036,16 @@
 
                 Object.keys(inspectorStats).sort((a, b) => inspectorStats[b].total - inspectorStats[a].total).forEach(inspector => {
                     const stats = inspectorStats[inspector];
-                    const failureRate = ((stats.failed / stats.total) * 100).toFixed(1);
+                    const passRate = (((stats.outstanding + stats.passed) / stats.total) * 100).toFixed(1);
                     const avgScore = (stats.totalScore / stats.total).toFixed(1);
-                    
+
                     inspectorData.push([
                         inspector,
                         stats.total,
+                        stats.outstanding,
                         stats.passed,
                         stats.failed,
-                        failureRate,
+                        passRate,
                         avgScore,
                         stats.rooms.size
                     ]);
@@ -4024,15 +4055,93 @@
                 wsInspector['!cols'] = [
                     { wch: 20 },
                     { wch: 18 },
+                    { wch: 12 },
                     { wch: 10 },
                     { wch: 10 },
-                    { wch: 15 },
+                    { wch: 12 },
                     { wch: 12 },
                     { wch: 15 }
                 ];
 
                 XLSX.utils.book_append_sheet(wb, wsInspector, 'Inspector Performance');
 
+                // ========== DEMERIT FREQUENCY ANALYSIS SHEET ==========
+                const demeritFreqData = [];
+                demeritFreqData.push(['DEMERIT FREQUENCY ANALYSIS']);
+                demeritFreqData.push([]);
+                demeritFreqData.push(['Violation Type', 'Category', 'Total Count', 'Frequency %', 'Rooms Affected']);
+
+                // Count regular demerits
+                const demeritCounts = {};
+                demerits.forEach(demerit => {
+                    demeritCounts[demerit] = { count: 0, rooms: new Set() };
+                });
+
+                const autoFailCounts = {};
+                autoFailureDemerits.forEach(demerit => {
+                    autoFailCounts[demerit] = { count: 0, rooms: new Set() };
+                });
+
+                filteredInspections.forEach(inspection => {
+                    if (inspection.demerits) {
+                        inspection.demerits.forEach(demerit => {
+                            if (demeritCounts[demerit]) {
+                                demeritCounts[demerit].count++;
+                                demeritCounts[demerit].rooms.add(inspection.roomNumber);
+                            }
+                        });
+                    }
+                    if (inspection.autoFailureDemerits) {
+                        inspection.autoFailureDemerits.forEach(demerit => {
+                            if (autoFailCounts[demerit]) {
+                                autoFailCounts[demerit].count++;
+                                autoFailCounts[demerit].rooms.add(inspection.roomNumber);
+                            }
+                        });
+                    }
+                });
+
+                // Add regular demerits to sheet
+                Object.keys(demeritCounts).sort((a, b) => demeritCounts[b].count - demeritCounts[a].count).forEach(demerit => {
+                    const data = demeritCounts[demerit];
+                    const frequency = ((data.count / total) * 100).toFixed(1);
+                    demeritFreqData.push([
+                        demerit,
+                        'Regular (1 pt)',
+                        data.count,
+                        frequency + '%',
+                        data.rooms.size
+                    ]);
+                });
+
+                // Add separator
+                demeritFreqData.push([]);
+
+                // Add auto-fail demerits to sheet
+                Object.keys(autoFailCounts).sort((a, b) => autoFailCounts[b].count - autoFailCounts[a].count).forEach(demerit => {
+                    const data = autoFailCounts[demerit];
+                    const frequency = ((data.count / total) * 100).toFixed(1);
+                    demeritFreqData.push([
+                        demerit,
+                        'Auto-Fail (4 pts)',
+                        data.count,
+                        frequency + '%',
+                        data.rooms.size
+                    ]);
+                });
+
+                const wsFreq = XLSX.utils.aoa_to_sheet(demeritFreqData);
+                wsFreq['!cols'] = [
+                    { wch: 40 },
+                    { wch: 18 },
+                    { wch: 12 },
+                    { wch: 12 },
+                    { wch: 15 }
+                ];
+
+                XLSX.utils.book_append_sheet(wb, wsFreq, 'Demerit Frequency');
+
+                // Write file
                 const fileName = `Dorm_Inspection_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
 
                 XLSX.writeFile(wb, fileName);
@@ -4047,9 +4156,10 @@
                         <div style="font-size: 48px; margin-bottom: 16px;">✓</div>
                         <div style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">Excel Report Generated!</div>
                         <div style="font-size: 14px; opacity: 0.9;">${fileName}</div>
+                        <div style="font-size: 12px; opacity: 0.8; margin-top: 8px;">Now with Visual Demerit Matrix!</div>
                     </div>
                 `;
-                
+
                 setTimeout(() => {
                     document.getElementById('report-content').innerHTML = originalContent;
                 }, 3000);
