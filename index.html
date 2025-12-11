@@ -3396,7 +3396,7 @@
                     // Find and check the corresponding demerit item
                     const demeritItems = document.querySelectorAll('.demerit-item');
                     demeritItems.forEach(item => {
-                        const label = item.querySelector('.demerit-label');
+                        const label = item.querySelector('.demerit-text');
                         if (label && label.textContent.trim() === demeritName) {
                             if (!item.classList.contains('checked')) {
                                 item.click();
