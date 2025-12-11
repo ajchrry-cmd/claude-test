@@ -1,0 +1,19 @@
+{
+  "name": "dorm-inspector",
+  "version": "2.0.0",
+  "description": "Dormitory inspection management system - Modular architecture",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "NODE_ENV=production vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && gh-pages -d dist"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.1.0",
+    "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "firebase": "^9.23.0"
+  }
+}
