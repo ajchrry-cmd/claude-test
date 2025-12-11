@@ -182,6 +182,18 @@
             50% { opacity: 0.5; }
         }
 
+        @keyframes flash {
+            0%, 100% {
+                background: var(--surface-light);
+                transform: scale(1);
+            }
+            50% {
+                background: linear-gradient(135deg, var(--primary), var(--secondary));
+                transform: scale(1.05);
+                box-shadow: 0 0 20px var(--primary);
+            }
+        }
+
         /* Navigation */
         .nav-container {
             background: var(--surface);
@@ -1863,7 +1875,15 @@
                 <div class="demerits-section">
                     <div class="section-header">
                         <h3 style="font-size: 15px; font-weight: 700; flex: 1;">Regular Violations</h3>
+                        <button id="voice-btn" onclick="toggleVoiceRecognition()" style="background: var(--primary); color: white; border: none; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px; transition: all 0.3s; margin-right: 8px;">
+                            <span id="voice-icon">🎤</span>
+                            <span id="voice-text">Voice</span>
+                        </button>
                         <span class="section-badge">1 Point Each</span>
+                    </div>
+                    <div id="voice-feedback" style="display: none; background: var(--primary); color: white; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-weight: 600; text-align: center; animation: pulse 1.5s ease-in-out infinite;">
+                        <div style="font-size: 14px; margin-bottom: 4px;">🎤 Listening...</div>
+                        <div id="voice-transcript" style="font-size: 12px; opacity: 0.9;"></div>
                     </div>
                     <div class="demerits-grid" id="demerits-container"></div>
                 </div>
@@ -3196,6 +3216,194 @@
                 saveBtn.style.background = 'linear-gradient(135deg, var(--success), #059669)';
                 saveBtn.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
             }
+        }
+
+        // Voice Recognition for Demerit Selection
+        let recognition = null;
+        let isListening = false;
+
+        function initVoiceRecognition() {
+            // Check if browser supports Web Speech API
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                console.warn('Speech recognition not supported in this browser');
+                return null;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event) => {
+                const transcript = Array.from(event.results)
+                    .map(result => result[0].transcript)
+                    .join('')
+                    .toLowerCase();
+
+                document.getElementById('voice-transcript').textContent = transcript;
+
+                // Match transcript to demerits
+                matchTranscriptToDemerits(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    alert('Microphone access denied. Please enable microphone permissions.');
+                }
+                stopVoiceRecognition();
+            };
+
+            recognition.onend = () => {
+                if (isListening) {
+                    // Restart if we're still supposed to be listening
+                    recognition.start();
+                }
+            };
+
+            return recognition;
+        }
+
+        function toggleVoiceRecognition() {
+            if (!recognition) {
+                recognition = initVoiceRecognition();
+                if (!recognition) {
+                    alert('Voice recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+                    return;
+                }
+            }
+
+            if (isListening) {
+                stopVoiceRecognition();
+            } else {
+                startVoiceRecognition();
+            }
+        }
+
+        function startVoiceRecognition() {
+            try {
+                recognition.start();
+                isListening = true;
+
+                // Update UI
+                document.getElementById('voice-btn').style.background = '#ef4444';
+                document.getElementById('voice-icon').textContent = '🔴';
+                document.getElementById('voice-text').textContent = 'Stop';
+                document.getElementById('voice-feedback').style.display = 'block';
+                document.getElementById('voice-transcript').textContent = 'Listening for demerit names...';
+
+                if (settings.hapticFeedback && 'vibrate' in navigator) {
+                    navigator.vibrate(50);
+                }
+            } catch (error) {
+                console.error('Error starting voice recognition:', error);
+                stopVoiceRecognition();
+            }
+        }
+
+        function stopVoiceRecognition() {
+            if (recognition) {
+                recognition.stop();
+            }
+            isListening = false;
+
+            // Update UI
+            document.getElementById('voice-btn').style.background = 'var(--primary)';
+            document.getElementById('voice-icon').textContent = '🎤';
+            document.getElementById('voice-text').textContent = 'Voice';
+            document.getElementById('voice-feedback').style.display = 'none';
+
+            if (settings.hapticFeedback && 'vibrate' in navigator) {
+                navigator.vibrate([50, 50, 50]);
+            }
+        }
+
+        function matchTranscriptToDemerits(transcript) {
+            // Create mapping of keywords to demerit items
+            const demeritKeywords = {
+                'bed': 'Bed not made or items on bed (SOP 341)',
+                'mirror': 'Mirror not cleaned',
+                'vanity': 'Vanity or sink area not cleaned',
+                'tile': 'Dirty tile or carpet',
+                'carpet': 'Dirty tile or carpet',
+                'odor': 'Odor in room',
+                'smell': 'Odor in room',
+                'dust': 'Dust or clutter on desk/shelf',
+                'clutter': 'Dust or clutter on desk/shelf',
+                'trash': 'Trash not emptied or not in proper bin',
+                'garbage': 'Trash not emptied or not in proper bin',
+                'appliance': 'Appliances left out or on floor',
+                'appliances': 'Appliances left out or on floor',
+                'shower curtain': 'Shower curtain not hung properly',
+                'curtain': 'Shower curtain not hung properly',
+                'tub': 'Bathtub or shower stall not cleaned',
+                'shower': 'Bathtub or shower stall not cleaned',
+                'bathtub': 'Bathtub or shower stall not cleaned',
+                'mold': 'Mold or mildew in bathroom',
+                'mildew': 'Mold or mildew in bathroom',
+                'toilet': 'Toilet not cleaned',
+                'bathroom tile': 'Bathroom tile, towels, or bath mat issues',
+                'towel': 'Bathroom tile, towels, or bath mat issues',
+                'towels': 'Bathroom tile, towels, or bath mat issues',
+                'bath mat': 'Bathroom tile, towels, or bath mat issues',
+                // Auto-failure demerits
+                'hazmat': 'HAZMAT/Flammable materials',
+                'flammable': 'HAZMAT/Flammable materials',
+                'locker': 'Wall locker or keys not secured',
+                'key': 'Wall locker or keys not secured',
+                'keys': 'Wall locker or keys not secured',
+                'valuables': 'Valuables not secured',
+                'valuable': 'Valuables not secured',
+                'medication': 'Prescription medications not secured',
+                'medications': 'Prescription medications not secured',
+                'prescription': 'Prescription medications not secured',
+                'prescriptions': 'Prescription medications not secured',
+                'tobacco': 'Tobacco products',
+                'cigarette': 'Tobacco products',
+                'vape': 'Tobacco products',
+                'perishable': 'Perishable food items',
+                'perishables': 'Perishable food items',
+                'food': 'Perishable food items',
+                'contraband': 'Contraband items',
+                'safety': 'Safety or window violation',
+                'window': 'Safety or window violation',
+                'to go': 'To-go containers or food containers',
+                'container': 'To-go containers or food containers',
+                'containers': 'To-go containers or food containers'
+            };
+
+            // Check for matches
+            let matched = false;
+            for (const [keyword, demeritName] of Object.entries(demeritKeywords)) {
+                if (transcript.includes(keyword)) {
+                    // Find and check the corresponding demerit item
+                    const demeritItems = document.querySelectorAll('.demerit-item');
+                    demeritItems.forEach(item => {
+                        const label = item.querySelector('.demerit-label');
+                        if (label && label.textContent.includes(demeritName)) {
+                            if (!item.classList.contains('checked')) {
+                                item.click();
+                                matched = true;
+
+                                // Visual feedback
+                                item.style.animation = 'none';
+                                setTimeout(() => {
+                                    item.style.animation = 'flash 0.5s ease';
+                                }, 10);
+
+                                // Haptic feedback
+                                if (settings.hapticFeedback && 'vibrate' in navigator) {
+                                    navigator.vibrate(30);
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+
+            return matched;
         }
 
         function updateRoomDropdown(preserveSelection) {
