@@ -3921,7 +3921,7 @@
         function generateReport() {
             const content = document.getElementById('report-content');
             const filteredInspections = getFilteredInspections('report');
-            
+
             if (filteredInspections.length === 0) {
                 content.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 40px;">No data available for selected date range</p>';
                 return;
@@ -3942,8 +3942,9 @@
                 </p>`;
             }
 
-            content.innerHTML = dateRangeText + `
-                <div class="stats-grid">
+            // Summary Stats
+            let html = dateRangeText + `
+                <div class="stats-grid" style="margin-bottom: 24px;">
                     <div class="stat-card highlight">
                         <div class="stat-number">${total}</div>
                         <div class="stat-label">Total</div>
@@ -3965,12 +3966,237 @@
                         <div class="stat-label">Pass Rate</div>
                     </div>
                 </div>
+            `;
+
+            // ===== PASS RATE TREND CHART =====
+            const dateGroups = {};
+            filteredInspections.forEach(insp => {
+                const date = insp.inspectionDate;
+                if (!dateGroups[date]) {
+                    dateGroups[date] = { total: 0, passed: 0, outstanding: 0, failed: 0 };
+                }
+                dateGroups[date].total++;
+                if (insp.status === 'OUTSTANDING') dateGroups[date].outstanding++;
+                else if (insp.status === 'PASSED') dateGroups[date].passed++;
+                else dateGroups[date].failed++;
+            });
+
+            const sortedDates = Object.keys(dateGroups).sort();
+            const trendData = sortedDates.map(date => {
+                const group = dateGroups[date];
+                const passRate = (((group.outstanding + group.passed) / group.total) * 100).toFixed(1);
+                return { date, passRate: parseFloat(passRate), total: group.total };
+            });
+
+            if (trendData.length > 0) {
+                const maxPassRate = 100;
+                html += `
+                    <div style="background: var(--surface); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">📈 Pass Rate Trend</h3>
+                        <div style="position: relative; height: 200px; display: flex; align-items: flex-end; gap: 4px; padding: 10px 0;">
+                            ${trendData.map((point, i) => {
+                                const height = (point.passRate / maxPassRate) * 100;
+                                const color = point.passRate >= 90 ? 'var(--success)' : point.passRate >= 70 ? 'var(--warning)' : 'var(--error)';
+                                return `
+                                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;">
+                                        <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">${point.passRate}%</div>
+                                        <div style="width: 100%; background: ${color}; height: ${height}%; border-radius: 4px 4px 0 0; position: relative; transition: all 0.3s; cursor: pointer;"
+                                             onmouseover="this.style.opacity='0.8'"
+                                             onmouseout="this.style.opacity='1'"
+                                             title="${point.date}: ${point.passRate}% (${point.total} inspections)">
+                                        </div>
+                                        <div style="font-size: 9px; color: var(--text-muted); margin-top: 4px; writing-mode: ${trendData.length > 15 ? 'vertical-rl' : 'horizontal-tb'}; text-align: center;">${new Date(point.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <div style="text-align: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-secondary);">
+                            <span style="color: var(--success);">●</span> ≥90%
+                            <span style="margin: 0 8px; color: var(--warning);">●</span> 70-89%
+                            <span style="margin: 0 8px; color: var(--error);">●</span> <70%
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ===== INSPECTOR PERFORMANCE CHART =====
+            const inspectorStats = {};
+            filteredInspections.forEach(insp => {
+                const inspector = insp.inspectorName || 'Unknown';
+                if (!inspectorStats[inspector]) {
+                    inspectorStats[inspector] = { total: 0, passed: 0, outstanding: 0, failed: 0, totalScore: 0 };
+                }
+                inspectorStats[inspector].total++;
+                inspectorStats[inspector].totalScore += insp.score || 0;
+                if (insp.status === 'OUTSTANDING') inspectorStats[inspector].outstanding++;
+                else if (insp.status === 'PASSED') inspectorStats[inspector].passed++;
+                else inspectorStats[inspector].failed++;
+            });
+
+            const inspectorData = Object.keys(inspectorStats).map(name => ({
+                name,
+                ...inspectorStats[name],
+                passRate: (((inspectorStats[name].outstanding + inspectorStats[name].passed) / inspectorStats[name].total) * 100).toFixed(1),
+                avgScore: (inspectorStats[name].totalScore / inspectorStats[name].total).toFixed(1)
+            })).sort((a, b) => b.total - a.total);
+
+            if (inspectorData.length > 0) {
+                html += `
+                    <div style="background: var(--surface); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">👥 Inspector Performance</h3>
+                        <div style="display: grid; gap: 12px;">
+                            ${inspectorData.map(inspector => `
+                                <div style="background: var(--surface-light); padding: 12px; border-radius: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                        <div style="font-weight: 600; font-size: 14px;">${inspector.name}</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary);">${inspector.total} inspections</div>
+                                    </div>
+                                    <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                                        <div style="flex: 1; background: var(--background); border-radius: 6px; overflow: hidden; height: 24px; position: relative;">
+                                            <div style="background: linear-gradient(90deg, #3b82f6, #2563eb); width: ${(inspector.outstanding / inspector.total) * 100}%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white;">${inspector.outstanding > 0 ? inspector.outstanding : ''}</div>
+                                            ${inspector.outstanding > 0 ? `<div style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 10px; color: white; font-weight: 600;">Outstanding</div>` : ''}
+                                        </div>
+                                        <div style="flex: 1; background: var(--background); border-radius: 6px; overflow: hidden; height: 24px; position: relative;">
+                                            <div style="background: linear-gradient(90deg, var(--success), #059669); width: ${(inspector.passed / inspector.total) * 100}%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white;">${inspector.passed > 0 ? inspector.passed : ''}</div>
+                                            ${inspector.passed > 0 ? `<div style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 10px; color: white; font-weight: 600;">Passed</div>` : ''}
+                                        </div>
+                                        <div style="flex: 1; background: var(--background); border-radius: 6px; overflow: hidden; height: 24px; position: relative;">
+                                            <div style="background: linear-gradient(90deg, var(--error), #dc2626); width: ${(inspector.failed / inspector.total) * 100}%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: white;">${inspector.failed > 0 ? inspector.failed : ''}</div>
+                                            ${inspector.failed > 0 ? `<div style="position: absolute; left: 4px; top: 50%; transform: translateY(-50%); font-size: 10px; color: white; font-weight: 600;">Failed</div>` : ''}
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary);">
+                                        <div>Pass Rate: <span style="color: ${inspector.passRate >= 90 ? 'var(--success)' : inspector.passRate >= 70 ? 'var(--warning)' : 'var(--error)'}; font-weight: 700;">${inspector.passRate}%</span></div>
+                                        <div>Avg Score: <span style="font-weight: 700; color: var(--text-primary);">${inspector.avgScore}</span></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ===== TOP DEMERITS CHART =====
+            const demeritCounts = {};
+            filteredInspections.forEach(insp => {
+                if (insp.demerits) {
+                    insp.demerits.forEach(d => {
+                        demeritCounts[d] = (demeritCounts[d] || 0) + 1;
+                    });
+                }
+                if (insp.autoFailureDemerits) {
+                    insp.autoFailureDemerits.forEach(d => {
+                        demeritCounts[d] = (demeritCounts[d] || 0) + 1;
+                    });
+                }
+            });
+
+            const topDemerits = Object.entries(demeritCounts)
+                .map(([name, count]) => ({ name, count, percentage: ((count / total) * 100).toFixed(1) }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 10);
+
+            if (topDemerits.length > 0) {
+                const maxCount = topDemerits[0].count;
+                html += `
+                    <div style="background: var(--surface); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">📊 Most Common Violations</h3>
+                        <div style="display: grid; gap: 10px;">
+                            ${topDemerits.map((demerit, index) => {
+                                const width = (demerit.count / maxCount) * 100;
+                                const isAutoFail = autoFailureDemerits.includes(demerit.name);
+                                const color = isAutoFail ? 'var(--error)' : 'var(--primary)';
+                                return `
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); width: 20px;">#${index + 1}</div>
+                                        <div style="flex: 1;">
+                                            <div style="font-size: 12px; margin-bottom: 4px; color: var(--text-primary); font-weight: 500;">${demerit.name} ${isAutoFail ? '<span style="color: var(--error); font-size: 10px;">⚠️ AUTO-FAIL</span>' : ''}</div>
+                                            <div style="background: var(--background); border-radius: 8px; overflow: hidden; height: 28px; position: relative;">
+                                                <div style="background: linear-gradient(90deg, ${color}, ${color}dd); width: ${width}%; height: 100%; transition: width 0.3s ease;"></div>
+                                                <div style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${demerit.count} (${demerit.percentage}%)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ===== ROOM PERFORMANCE HEATMAP =====
+            const roomStats = {};
+            filteredInspections.forEach(insp => {
+                const room = insp.roomNumber;
+                if (!roomStats[room]) {
+                    roomStats[room] = { inspections: 0, totalScore: 0, failed: 0 };
+                }
+                roomStats[room].inspections++;
+                roomStats[room].totalScore += insp.score || 0;
+                if (insp.status === 'FAILED') roomStats[room].failed++;
+            });
+
+            const problemRooms = Object.entries(roomStats)
+                .map(([room, stats]) => ({
+                    room,
+                    avgScore: (stats.totalScore / stats.inspections).toFixed(1),
+                    failRate: ((stats.failed / stats.inspections) * 100).toFixed(0),
+                    inspections: stats.inspections
+                }))
+                .filter(r => r.inspections >= 2)
+                .sort((a, b) => b.avgScore - a.avgScore);
+
+            const topPerformers = problemRooms.slice(0, 5);
+            const bottomPerformers = problemRooms.slice(-5).reverse();
+
+            if (problemRooms.length > 0) {
+                html += `
+                    <div style="background: var(--surface); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--text-primary);">🏆 Room Performance</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                            <div>
+                                <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--success);">✨ Top Performers</h4>
+                                <div style="display: grid; gap: 6px;">
+                                    ${topPerformers.map((room, index) => `
+                                        <div style="background: var(--surface-light); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <span style="font-weight: 700; color: var(--text-primary);">Room ${room.room}</span>
+                                                <span style="font-size: 11px; color: var(--text-muted); margin-left: 6px;">(${room.inspections} checks)</span>
+                                            </div>
+                                            <div style="font-size: 13px; font-weight: 700; color: var(--success);">Avg: ${room.avgScore}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--error);">⚠️ Needs Attention</h4>
+                                <div style="display: grid; gap: 6px;">
+                                    ${bottomPerformers.map((room, index) => `
+                                        <div style="background: var(--surface-light); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <span style="font-weight: 700; color: var(--text-primary);">Room ${room.room}</span>
+                                                <span style="font-size: 11px; color: var(--text-muted); margin-left: 6px;">(${room.inspections} checks)</span>
+                                            </div>
+                                            <div style="font-size: 13px; font-weight: 700; color: var(--error);">Avg: ${room.avgScore}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Export Buttons
+            html += `
                 <div style="display: grid; gap: 12px; margin-top: 24px;">
                     <button class="btn btn-primary" onclick="window.print()">🖨️ Print Report</button>
                     <button class="btn btn-success" onclick="exportToCSV()">📊 Export CSV</button>
                     <button class="btn btn-secondary" onclick="exportToExcel()">📋 Export Excel</button>
                 </div>
             `;
+
+            content.innerHTML = html;
         }
 
         function setReportDateRange(range) {
