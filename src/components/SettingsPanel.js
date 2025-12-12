@@ -36,7 +36,7 @@ export class SettingsPanel {
 
                                     <div class="form-group">
                                         <label class="form-label">Color Preset</label>
-                                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px;">
+                                        <div class="color-preset-grid">
                                             ${this.renderColorPresets(settings.activePreset)}
                                         </div>
                                     </div>

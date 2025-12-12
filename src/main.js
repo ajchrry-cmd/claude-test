@@ -20,6 +20,7 @@ import { EditInspectionModal } from './components/EditInspectionModal.js';
 import { ReportsComponent } from './components/ReportsComponent.js';
 import { SettingsPanel } from './components/SettingsPanel.js';
 import { RoomGrid } from './components/RoomGrid.js';
+import { AdminPanel } from './components/AdminPanel.js';
 
 // Import services
 import exportService from './services/exportService.js';
@@ -41,7 +42,13 @@ class DormInspectorApp {
         this.reportsComponent = null;
         this.settingsPanel = null;
         this.roomGrid = null;
+        this.adminPanel = null;
+        this.adminClickCount = 0;
+        this.adminClickTimeout = null;
         this.viewMode = 'card'; // 'card', 'list', 'table'
+        this.searchQuery = '';
+        this.filterStatus = 'all';
+        this.filterInspector = 'all';
         this.initialized = false;
     }
 
@@ -134,7 +141,7 @@ class DormInspectorApp {
                 <!-- Header -->
                 <header class="header">
                     <div class="header-content">
-                        <h1 class="header-title">🏠 Dorm Inspector</h1>
+                        <h1 class="header-title" id="header-title" style="cursor: pointer; user-select: none;" onclick="window.handleAdminClick()">🏠 Dorm Inspector</h1>
                         <div style="display: flex; align-items: center; gap: 16px;">
                             <div style="color: white; font-size: 14px;" id="connection-status">
                                 ${store.state.isConnected ? '🟢 Connected' : '🔴 Offline'}
@@ -202,6 +209,11 @@ class DormInspectorApp {
                                 <input type="date" id="inspection-date" class="form-input" value="${getTodayString()}">
                             </div>
 
+                            <div class="form-group">
+                                <label class="form-label">Notes (Optional)</label>
+                                <textarea id="inspection-notes" class="form-input" rows="3" placeholder="Add any additional notes or observations about this inspection..."></textarea>
+                            </div>
+
                             <!-- Score Display -->
                             <div id="score-container"></div>
 
@@ -232,6 +244,34 @@ class DormInspectorApp {
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Search and Filters -->
+                            <div style="background: var(--surface-light); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <input type="text" id="search-input" class="form-input" placeholder="🔍 Search by room, inspector, or notes..." oninput="window.updateSearch()">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <select id="filter-status" class="form-select" onchange="window.updateFilters()">
+                                            <option value="all">All Status</option>
+                                            <option value="OUTSTANDING">Outstanding</option>
+                                            <option value="PASSED">Passed</option>
+                                            <option value="FAILED">Failed</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <select id="filter-inspector" class="form-select" onchange="window.updateFilters()">
+                                            <option value="all">All Inspectors</option>
+                                            ${INSPECTOR_NAMES.map(name => `<option value="${name}">${name}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span style="font-size: 14px; color: var(--text-muted);" id="results-count"></span>
+                                    <button class="btn btn-secondary btn-small" onclick="window.clearFilters()" style="margin-left: auto;">✕ Clear Filters</button>
+                                </div>
+                            </div>
+
                             <div id="inspections-list">
                                 ${this.renderInspectionsList()}
                             </div>
@@ -261,6 +301,9 @@ class DormInspectorApp {
 
                 <!-- Settings Panel Container -->
                 <div id="settings-container" style="display: none;"></div>
+
+                <!-- Admin Panel Container -->
+                <div id="admin-container" style="display: none;"></div>
             </div>
         `;
 
@@ -290,6 +333,10 @@ class DormInspectorApp {
         this.roomGrid = new RoomGrid(roomGridContainer);
         this.roomGrid.render();
 
+        // Initialize admin panel
+        const adminContainer = document.getElementById('admin-container');
+        this.adminPanel = new AdminPanel(adminContainer);
+
         // Setup global functions for onclick handlers
         window.editInspection = (id) => this.editInspection(id);
         window.deleteInspection = (id) => this.deleteInspection(id);
@@ -308,6 +355,23 @@ class DormInspectorApp {
         window.updateReportDates = () => this.updateReportDates();
         window.setReportRange = (range) => this.setReportRange(range);
         window.clearReportRange = () => this.clearReportRange();
+        window.updateSearch = () => this.updateSearch();
+        window.updateFilters = () => this.updateFilters();
+        window.clearFilters = () => this.clearFilters();
+        window.handleAdminClick = () => this.handleAdminClick();
+        window.closeAdminPanel = () => this.closeAdminPanel();
+        window.exportAllData = () => this.exportAllData();
+        window.importData = () => this.importData();
+        window.downloadBackup = () => this.exportAllData();
+        window.adminDeleteAllInspections = () => this.adminDeleteAllInspections();
+        window.adminClearRoomProperties = () => this.adminClearRoomProperties();
+        window.adminDeleteAllLists = () => this.adminDeleteAllLists();
+        window.adminResetSettings = () => this.adminResetSettings();
+        window.adminNuclearOption = () => this.adminNuclearOption();
+        window.syncToFirebase = () => this.syncToFirebase();
+        window.syncFromFirebase = () => this.syncFromFirebase();
+        window.clearLocalStorage = () => this.clearLocalStorage();
+        window.reloadApp = () => window.location.reload();
     }
 
     generateRoomOptions() {
@@ -411,6 +475,7 @@ class DormInspectorApp {
         const inspectionDate = document.getElementById('inspection-date').value;
         const shift = document.getElementById('room-shift').value;
         const gender = document.getElementById('room-gender').value;
+        const notes = document.getElementById('inspection-notes').value.trim();
         const demerits = this.demeritGrid.getSelected();
         const score = this.scoreDisplay.getResult();
 
@@ -422,6 +487,7 @@ class DormInspectorApp {
             autoFailureDemerits: demerits.autoFailure,
             score: score.score,
             status: score.status,
+            notes: notes || '',
             timestamp: new Date().toISOString()
         };
 
@@ -485,6 +551,9 @@ class DormInspectorApp {
         document.getElementById('room-number').value = '';
         document.getElementById('inspector-name').value = '';
         document.getElementById('inspection-date').value = getTodayString();
+        document.getElementById('room-shift').value = '';
+        document.getElementById('room-gender').value = '';
+        document.getElementById('inspection-notes').value = '';
 
         if (this.demeritGrid) {
             this.demeritGrid.reset();
@@ -496,13 +565,29 @@ class DormInspectorApp {
     }
 
     renderInspectionsList() {
-        const inspections = store.getInspections();
+        let inspections = store.getInspections();
+
+        // Apply filters
+        inspections = this.applyFilters(inspections);
+
+        // Update results count
+        const countEl = document.getElementById('results-count');
+        if (countEl) {
+            const total = store.getInspections().length;
+            const filtered = inspections.length;
+            if (filtered === total) {
+                countEl.textContent = `Showing all ${total} inspection${total !== 1 ? 's' : ''}`;
+            } else {
+                countEl.textContent = `Showing ${filtered} of ${total} inspection${total !== 1 ? 's' : ''}`;
+            }
+        }
 
         if (inspections.length === 0) {
+            const hasFilters = this.searchQuery || this.filterStatus !== 'all' || this.filterInspector !== 'all';
             return `
                 <div class="empty-state">
                     <div class="empty-state-icon">📋</div>
-                    <div>No inspections yet. Create your first inspection!</div>
+                    <div>${hasFilters ? 'No inspections match your filters' : 'No inspections yet. Create your first inspection!'}</div>
                 </div>
             `;
         }
@@ -864,6 +949,347 @@ class DormInspectorApp {
             this.reportsComponent.startDate = null;
             this.reportsComponent.endDate = null;
             this.reportsComponent.render();
+        }
+    }
+
+    applyFilters(inspections) {
+        let filtered = [...inspections];
+
+        // Apply search query
+        if (this.searchQuery) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(insp =>
+                insp.roomNumber?.toString().toLowerCase().includes(query) ||
+                insp.inspectorName?.toLowerCase().includes(query) ||
+                insp.notes?.toLowerCase().includes(query)
+            );
+        }
+
+        // Apply status filter
+        if (this.filterStatus !== 'all') {
+            filtered = filtered.filter(insp => insp.status === this.filterStatus);
+        }
+
+        // Apply inspector filter
+        if (this.filterInspector !== 'all') {
+            filtered = filtered.filter(insp => insp.inspectorName === this.filterInspector);
+        }
+
+        return filtered;
+    }
+
+    updateSearch() {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            this.searchQuery = searchInput.value.trim();
+            this.refreshInspectionsList();
+        }
+    }
+
+    updateFilters() {
+        const statusFilter = document.getElementById('filter-status');
+        const inspectorFilter = document.getElementById('filter-inspector');
+
+        if (statusFilter) {
+            this.filterStatus = statusFilter.value;
+        }
+
+        if (inspectorFilter) {
+            this.filterInspector = inspectorFilter.value;
+        }
+
+        this.refreshInspectionsList();
+    }
+
+    clearFilters() {
+        this.searchQuery = '';
+        this.filterStatus = 'all';
+        this.filterInspector = 'all';
+
+        const searchInput = document.getElementById('search-input');
+        const statusFilter = document.getElementById('filter-status');
+        const inspectorFilter = document.getElementById('filter-inspector');
+
+        if (searchInput) searchInput.value = '';
+        if (statusFilter) statusFilter.value = 'all';
+        if (inspectorFilter) inspectorFilter.value = 'all';
+
+        this.refreshInspectionsList();
+    }
+
+    refreshInspectionsList() {
+        const listEl = document.getElementById('inspections-list');
+        if (listEl) {
+            listEl.innerHTML = this.renderInspectionsList();
+        }
+    }
+
+    // Admin Panel Methods
+    handleAdminClick() {
+        this.adminClickCount++;
+
+        // Reset counter after 2 seconds
+        clearTimeout(this.adminClickTimeout);
+        this.adminClickTimeout = setTimeout(() => {
+            this.adminClickCount = 0;
+        }, 2000);
+
+        // Open admin panel after 5 clicks
+        if (this.adminClickCount >= 5) {
+            this.adminClickCount = 0;
+            this.openAdminPanel();
+        }
+    }
+
+    openAdminPanel() {
+        if (this.adminPanel) {
+            this.adminPanel.show();
+        }
+    }
+
+    closeAdminPanel() {
+        if (this.adminPanel) {
+            this.adminPanel.close();
+        }
+    }
+
+    exportAllData() {
+        if (this.adminPanel) {
+            this.adminPanel.exportAllData();
+        }
+    }
+
+    importData() {
+        const fileInput = document.getElementById('import-file');
+        if (fileInput && fileInput.files.length > 0 && this.adminPanel) {
+            this.adminPanel.importData(fileInput.files[0]);
+        }
+    }
+
+    adminDeleteAllInspections() {
+        const confirmed = confirm(
+            '⚠️ WARNING: This will permanently delete ALL inspections!\n\n' +
+            'This action cannot be undone. Are you absolutely sure?'
+        );
+
+        if (!confirmed) return;
+
+        const doubleConfirm = confirm('Are you REALLY sure? Type your confirmation by clicking OK.');
+        if (!doubleConfirm) return;
+
+        try {
+            // Delete from Firebase
+            if (store.state.isConnected) {
+                firebaseService.deleteAllInspections();
+            }
+
+            // Clear from store
+            store.setInspections([]);
+
+            // Clear from localStorage
+            storageService.save('inspections', []);
+
+            alert('✅ All inspections deleted successfully!');
+
+            // Refresh UI
+            this.refreshInspectionsList();
+            if (this.reportsComponent) {
+                this.reportsComponent.render();
+            }
+            if (this.adminPanel) {
+                this.adminPanel.show(); // Re-render to update stats
+            }
+        } catch (error) {
+            console.error('Delete all failed:', error);
+            alert('❌ Failed to delete inspections: ' + error.message);
+        }
+    }
+
+    adminClearRoomProperties() {
+        const confirmed = confirm('Are you sure you want to clear all room properties (shift/gender)?');
+        if (!confirmed) return;
+
+        try {
+            store.setState({ roomProperties: {} });
+            storageService.save('roomProperties', {});
+
+            alert('✅ Room properties cleared!');
+
+            if (this.roomGrid) {
+                this.roomGrid.render();
+            }
+            if (this.adminPanel) {
+                this.adminPanel.show();
+            }
+        } catch (error) {
+            console.error('Clear room properties failed:', error);
+            alert('❌ Failed: ' + error.message);
+        }
+    }
+
+    adminDeleteAllLists() {
+        const confirmed = confirm('Are you sure you want to delete all inspection lists?');
+        if (!confirmed) return;
+
+        try {
+            // Clear from store
+            store.setInspectionLists([]);
+
+            // Clear from Firebase
+            if (store.state.isConnected) {
+                firebaseService.saveInspectionLists([]);
+            }
+
+            // Clear from localStorage
+            storageService.save('inspectionLists', []);
+
+            alert('✅ All lists deleted!');
+
+            if (this.roomGrid) {
+                this.roomGrid.render();
+            }
+            if (this.adminPanel) {
+                this.adminPanel.show();
+            }
+        } catch (error) {
+            console.error('Delete lists failed:', error);
+            alert('❌ Failed: ' + error.message);
+        }
+    }
+
+    adminResetSettings() {
+        const confirmed = confirm('Reset all settings to defaults?');
+        if (!confirmed) return;
+
+        try {
+            store.setSettings({ ...DEFAULT_SETTINGS });
+            storageService.save('settings', DEFAULT_SETTINGS);
+
+            if (this.settingsPanel) {
+                this.settingsPanel.applySettings(DEFAULT_SETTINGS);
+            }
+
+            alert('✅ Settings reset to defaults!');
+        } catch (error) {
+            console.error('Reset settings failed:', error);
+            alert('❌ Failed: ' + error.message);
+        }
+    }
+
+    adminNuclearOption() {
+        const confirmed = confirm(
+            '☢️ NUCLEAR OPTION ☢️\n\n' +
+            'This will DELETE EVERYTHING:\n' +
+            '- All inspections\n' +
+            '- All lists\n' +
+            '- All room properties\n' +
+            '- All settings\n\n' +
+            'This CANNOT be undone!\n\n' +
+            'Are you absolutely sure?'
+        );
+
+        if (!confirmed) return;
+
+        const verification = prompt('Type "DELETE EVERYTHING" to confirm:');
+        if (verification !== 'DELETE EVERYTHING') {
+            alert('Cancelled - verification text did not match');
+            return;
+        }
+
+        try {
+            // Clear everything
+            store.setInspections([]);
+            store.setInspectionLists([]);
+            store.setState({ roomProperties: {} });
+            store.setSettings({ ...DEFAULT_SETTINGS });
+
+            // Clear localStorage
+            storageService.save('inspections', []);
+            storageService.save('inspectionLists', []);
+            storageService.save('roomProperties', {});
+            storageService.save('settings', DEFAULT_SETTINGS);
+
+            // Clear Firebase if connected
+            if (store.state.isConnected) {
+                firebaseService.deleteAllInspections();
+                firebaseService.saveInspectionLists([]);
+            }
+
+            alert('☢️ Everything has been deleted. Reloading...');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+            console.error('Nuclear option failed:', error);
+            alert('❌ Failed: ' + error.message);
+        }
+    }
+
+    async syncToFirebase() {
+        if (!store.state.isConnected) {
+            alert('❌ Not connected to Firebase!');
+            return;
+        }
+
+        try {
+            const inspections = store.getInspections();
+            const lists = store.getInspectionLists();
+
+            // Save all data to Firebase
+            for (const inspection of inspections) {
+                await firebaseService.saveInspection(inspection);
+            }
+
+            await firebaseService.saveInspectionLists(lists);
+
+            alert(`✅ Synced ${inspections.length} inspections and ${lists.length} lists to Firebase!`);
+        } catch (error) {
+            console.error('Sync to Firebase failed:', error);
+            alert('❌ Sync failed: ' + error.message);
+        }
+    }
+
+    async syncFromFirebase() {
+        if (!store.state.isConnected) {
+            alert('❌ Not connected to Firebase!');
+            return;
+        }
+
+        try {
+            const inspections = await firebaseService.getInspections();
+            const lists = await firebaseService.getInspectionLists();
+
+            store.setInspections(inspections);
+            store.setInspectionLists(lists);
+
+            storageService.save('inspections', inspections);
+            storageService.save('inspectionLists', lists);
+
+            alert(`✅ Synced ${inspections.length} inspections and ${lists.length} lists from Firebase!`);
+
+            // Refresh UI
+            this.refreshInspectionsList();
+            if (this.roomGrid) {
+                this.roomGrid.render();
+            }
+            if (this.adminPanel) {
+                this.adminPanel.show();
+            }
+        } catch (error) {
+            console.error('Sync from Firebase failed:', error);
+            alert('❌ Sync failed: ' + error.message);
+        }
+    }
+
+    clearLocalStorage() {
+        const confirmed = confirm('Clear all localStorage data? This will not affect Firebase data.');
+        if (!confirmed) return;
+
+        try {
+            localStorage.clear();
+            alert('✅ LocalStorage cleared! Reloading...');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+            console.error('Clear localStorage failed:', error);
+            alert('❌ Failed: ' + error.message);
         }
     }
 

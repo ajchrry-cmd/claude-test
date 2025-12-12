@@ -54,5 +54,55 @@ export const COLOR_PRESETS = {
         primary: '#8b5cf6',
         secondary: '#a78bfa',
         accent: '#ec4899'
+    },
+    cherry: {
+        primary: '#dc2626',
+        secondary: '#991b1b',
+        accent: '#f472b6'
+    },
+    mint: {
+        primary: '#14b8a6',
+        secondary: '#0d9488',
+        accent: '#2dd4bf'
+    },
+    lavender: {
+        primary: '#c084fc',
+        secondary: '#a855f7',
+        accent: '#60a5fa'
+    },
+    fire: {
+        primary: '#ef4444',
+        secondary: '#f97316',
+        accent: '#fbbf24'
+    },
+    night: {
+        primary: '#1e40af',
+        secondary: '#1e3a8a',
+        accent: '#3b82f6'
+    },
+    rose: {
+        primary: '#f43f5e',
+        secondary: '#fb7185',
+        accent: '#fda4af'
+    },
+    emerald: {
+        primary: '#059669',
+        secondary: '#047857',
+        accent: '#34d399'
+    },
+    amber: {
+        primary: '#d97706',
+        secondary: '#b45309',
+        accent: '#fbbf24'
+    },
+    arctic: {
+        primary: '#67e8f9',
+        secondary: '#22d3ee',
+        accent: '#a5f3fc'
+    },
+    grape: {
+        primary: '#7c3aed',
+        secondary: '#6d28d9',
+        accent: '#a78bfa'
     }
 };

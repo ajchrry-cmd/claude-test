@@ -66,6 +66,16 @@ export class InspectionCard {
                 <div style="display: grid; gap: 8px; font-size: ${fontSize}; color: var(--text-secondary); margin-bottom: 12px;">
                     ${details}
                 </div>
+                ${inspection.notes && settings.showFields.notes ? `
+                    <div style="background: var(--surface-light); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">
+                            📝 Notes
+                        </div>
+                        <div style="font-size: ${fontSize}; color: var(--text-primary); white-space: pre-wrap; line-height: 1.6;">
+                            ${inspection.notes}
+                        </div>
+                    </div>
+                ` : ''}
                 ${this.renderViolations(inspection, settings)}
                 <div class="inspection-actions" style="display: flex; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);">
                     <button class="btn btn-warning btn-small" onclick="window.editInspection('${inspection.id}')" style="flex: 1;">

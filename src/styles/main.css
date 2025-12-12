@@ -352,6 +352,13 @@ body {
     border: none;
 }
 
+.color-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
 .color-preset-btn {
     display: flex;
     gap: 4px;
@@ -744,6 +751,11 @@ body {
         padding: 10px;
         min-height: 44px;
     }
+
+    /* Color preset grid - 2 columns on mobile */
+    .color-preset-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 /* Extra small devices (phones in portrait) */
@@ -823,5 +835,40 @@ body {
     /* Prevent double-tap zoom */
     * {
         touch-action: manipulation;
+    }
+}
+
+/* Textarea Styles */
+textarea.form-input {
+    resize: vertical;
+    min-height: 60px;
+    font-family: inherit;
+    line-height: 1.6;
+}
+
+textarea.form-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+/* Search and Filter Section */
+@media (max-width: 768px) {
+    #history-section .card > div:nth-child(2) {
+        padding: 12px;
+    }
+
+    #history-section .card > div:nth-child(2) > div:first-child {
+        grid-template-columns: 1fr !important;
+        gap: 8px;
+    }
+
+    #history-section .card > div:nth-child(2) > div:last-child {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    #history-section .card > div:nth-child(2) > div:last-child button {
+        margin-left: 0 !important;
+        width: 100%;
     }
 }
