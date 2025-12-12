@@ -51,6 +51,10 @@ export class AdminPanel {
                                 </label>
                             </div>
 
+                            <button class="btn btn-secondary" onclick="window.openImportInspections()" style="width: 100%; margin-bottom: 8px;">
+                                📊 Import Inspections (CSV)
+                            </button>
+
                             <button class="btn btn-secondary" onclick="window.downloadBackup()" style="width: 100%;">
                                 💿 Download Full Backup
                             </button>

@@ -21,6 +21,9 @@ import { ReportsComponent } from './components/ReportsComponent.js';
 import { SettingsPanel } from './components/SettingsPanel.js';
 import { RoomGrid } from './components/RoomGrid.js';
 import { AdminPanel } from './components/AdminPanel.js';
+import { RoomManagementModal } from './components/RoomManagementModal.js';
+import { ImportDataModal } from './components/ImportDataModal.js';
+import { TemplatesModal } from './components/TemplatesModal.js';
 
 // Import services
 import exportService from './services/exportService.js';
@@ -43,6 +46,9 @@ class DormInspectorApp {
         this.settingsPanel = null;
         this.roomGrid = null;
         this.adminPanel = null;
+        this.roomManagementModal = null;
+        this.importDataModal = null;
+        this.templatesModal = null;
         this.adminClickCount = 0;
         this.adminClickTimeout = null;
         this.viewMode = 'card'; // 'card', 'list', 'table'
@@ -142,10 +148,13 @@ class DormInspectorApp {
                 <header class="header">
                     <div class="header-content">
                         <h1 class="header-title" id="header-title" style="cursor: pointer; user-select: none;" onclick="window.handleAdminClick()">🏠 Dorm Inspector</h1>
-                        <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
                             <div style="color: white; font-size: 14px;" id="connection-status">
                                 ${store.state.isConnected ? '🟢 Connected' : '🔴 Offline'}
                             </div>
+                            <button id="room-mgmt-btn" class="btn btn-secondary btn-small" style="background: rgba(255,255,255,0.2); border: none; color: white;">
+                                🏠 Rooms
+                            </button>
                             <button id="settings-btn" class="btn btn-secondary btn-small" style="background: rgba(255,255,255,0.2); border: none; color: white;">
                                 ⚙️ Settings
                             </button>
@@ -224,6 +233,7 @@ class DormInspectorApp {
                             <div style="display: flex; gap: 12px; margin-top: 24px;">
                                 <button id="submit-btn" class="btn btn-primary">💾 Save Inspection</button>
                                 <button id="reset-btn" class="btn btn-secondary">🔄 Reset</button>
+                                <button id="templates-btn" class="btn btn-secondary">📋 Templates</button>
                             </div>
                         </div>
                     </div>
@@ -304,6 +314,15 @@ class DormInspectorApp {
 
                 <!-- Admin Panel Container -->
                 <div id="admin-container" style="display: none;"></div>
+
+                <!-- Room Management Modal Container -->
+                <div id="room-mgmt-container" style="display: none;"></div>
+
+                <!-- Import Data Modal Container -->
+                <div id="import-data-container" style="display: none;"></div>
+
+                <!-- Templates Modal Container -->
+                <div id="templates-container" style="display: none;"></div>
             </div>
         `;
 
@@ -336,6 +355,18 @@ class DormInspectorApp {
         // Initialize admin panel
         const adminContainer = document.getElementById('admin-container');
         this.adminPanel = new AdminPanel(adminContainer);
+
+        // Initialize room management modal
+        const roomMgmtContainer = document.getElementById('room-mgmt-container');
+        this.roomManagementModal = new RoomManagementModal(roomMgmtContainer);
+
+        // Initialize import data modal
+        const importDataContainer = document.getElementById('import-data-container');
+        this.importDataModal = new ImportDataModal(importDataContainer);
+
+        // Initialize templates modal
+        const templatesContainer = document.getElementById('templates-container');
+        this.templatesModal = new TemplatesModal(templatesContainer, this.demeritGrid);
 
         // Setup global functions for onclick handlers
         window.editInspection = (id) => this.editInspection(id);
@@ -372,6 +403,35 @@ class DormInspectorApp {
         window.syncFromFirebase = () => this.syncFromFirebase();
         window.clearLocalStorage = () => this.clearLocalStorage();
         window.reloadApp = () => window.location.reload();
+
+        // Room Management Modal functions
+        window.openRoomManagement = () => this.openRoomManagement();
+        window.closeRoomManagement = () => this.closeRoomManagement();
+        window.saveRoomManagement = () => this.saveRoomManagement();
+        window.toggleRoomSelection = (roomNum) => this.toggleRoomSelection(roomNum);
+        window.selectAllRooms = () => this.selectAllRoomsInMgmt();
+        window.deselectAllRooms = () => this.deselectAllRooms();
+        window.selectRoomsByFloor = (floor) => this.selectRoomsByFloor(floor);
+        window.bulkSetGender = (gender) => this.bulkSetGender(gender);
+        window.bulkSetShift = (shift) => this.bulkSetShift(shift);
+        window.bulkClearProperties = () => this.bulkClearProperties();
+        window.applyPreset = (preset) => this.applyRoomPreset(preset);
+        window.clearAllRoomProperties = () => this.clearAllRoomPropertiesFromModal();
+        window.filterRoomView = () => this.filterRoomView();
+
+        // Import Data Modal functions
+        window.openImportInspections = () => this.openImportInspections();
+        window.closeImportData = () => this.closeImportData();
+        window.handleImportFileSelect = () => this.handleImportFileSelect();
+        window.confirmImport = () => this.confirmImport();
+        window.refreshAfterImport = () => this.refreshAfterImport();
+
+        // Templates Modal functions
+        window.openTemplates = () => this.openTemplates();
+        window.closeTemplates = () => this.closeTemplates();
+        window.saveCurrentAsTemplate = () => this.saveCurrentAsTemplate();
+        window.loadTemplate = (index) => this.loadTemplate(index);
+        window.deleteTemplate = (index) => this.deleteTemplate(index);
     }
 
     generateRoomOptions() {
@@ -404,6 +464,11 @@ class DormInspectorApp {
             this.resetForm();
         });
 
+        // Templates button
+        document.getElementById('templates-btn').addEventListener('click', () => {
+            this.openTemplates();
+        });
+
         // Voice button
         document.getElementById('voice-btn').addEventListener('click', () => {
             voiceService.toggle();
@@ -412,6 +477,11 @@ class DormInspectorApp {
         // Settings button
         document.getElementById('settings-btn').addEventListener('click', () => {
             this.openSettings();
+        });
+
+        // Room management button
+        document.getElementById('room-mgmt-btn').addEventListener('click', () => {
+            this.openRoomManagement();
         });
 
         // View mode buttons
@@ -426,6 +496,127 @@ class DormInspectorApp {
         document.getElementById('export-excel-btn').addEventListener('click', async () => {
             await this.exportToExcel();
         });
+
+        // Setup keyboard shortcuts
+        this.setupKeyboardShortcuts();
+    }
+
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Check if user is typing in an input field
+            const isInputFocused = document.activeElement.tagName === 'INPUT' ||
+                                   document.activeElement.tagName === 'TEXTAREA' ||
+                                   document.activeElement.tagName === 'SELECT';
+
+            // Ctrl/Cmd + S: Save inspection
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (store.state.activeTab === 'inspect') {
+                    this.saveInspection();
+                }
+                return;
+            }
+
+            // Ctrl/Cmd + R: Reset form
+            if ((e.ctrlKey || e.metaKey) && e.key === 'r' && store.state.activeTab === 'inspect') {
+                e.preventDefault();
+                this.resetForm();
+                return;
+            }
+
+            // Ctrl/Cmd + T: Open templates
+            if ((e.ctrlKey || e.metaKey) && e.key === 't' && store.state.activeTab === 'inspect') {
+                e.preventDefault();
+                this.openTemplates();
+                return;
+            }
+
+            // Ctrl/Cmd + ,: Open settings
+            if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+                e.preventDefault();
+                this.openSettings();
+                return;
+            }
+
+            // Ctrl/Cmd + M: Open room management
+            if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+                e.preventDefault();
+                this.openRoomManagement();
+                return;
+            }
+
+            // Ctrl/Cmd + P: Print (let browser handle, but show message)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                // Don't prevent default - let browser handle print
+                console.log('Print shortcut detected');
+                return;
+            }
+
+            // Ctrl/Cmd + /: Show keyboard shortcuts help
+            if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+                e.preventDefault();
+                this.showKeyboardShortcutsHelp();
+                return;
+            }
+
+            // Number keys 1-4: Switch tabs (only when not in input)
+            if (!isInputFocused && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                switch(e.key) {
+                    case '1':
+                        e.preventDefault();
+                        this.switchTab('inspect');
+                        return;
+                    case '2':
+                        e.preventDefault();
+                        this.switchTab('history');
+                        return;
+                    case '3':
+                        e.preventDefault();
+                        this.switchTab('reports');
+                        return;
+                    case '4':
+                        e.preventDefault();
+                        this.switchTab('room-setup');
+                        return;
+                }
+            }
+
+            // Escape: Close modals
+            if (e.key === 'Escape') {
+                if (this.settingsPanel && this.settingsPanel.container.style.display !== 'none') {
+                    this.closeSettings();
+                } else if (this.adminPanel && this.adminPanel.container.style.display !== 'none') {
+                    this.closeAdminPanel();
+                } else if (this.roomManagementModal && this.roomManagementModal.container.style.display !== 'none') {
+                    this.closeRoomManagement();
+                } else if (this.importDataModal && this.importDataModal.container.style.display !== 'none') {
+                    this.closeImportData();
+                } else if (this.templatesModal && this.templatesModal.container.style.display !== 'none') {
+                    this.closeTemplates();
+                } else if (this.editModal && this.editModal.container.style.display !== 'none') {
+                    this.editModal.close();
+                }
+                return;
+            }
+        });
+    }
+
+    showKeyboardShortcutsHelp() {
+        const shortcuts = [
+            { keys: '1, 2, 3, 4', description: 'Switch between tabs (Inspect, History, Reports, Room Setup)' },
+            { keys: 'Ctrl/Cmd + S', description: 'Save current inspection' },
+            { keys: 'Ctrl/Cmd + R', description: 'Reset inspection form' },
+            { keys: 'Ctrl/Cmd + T', description: 'Open templates' },
+            { keys: 'Ctrl/Cmd + ,', description: 'Open settings' },
+            { keys: 'Ctrl/Cmd + M', description: 'Open room management' },
+            { keys: 'Ctrl/Cmd + P', description: 'Print current view' },
+            { keys: 'Ctrl/Cmd + /', description: 'Show this help' },
+            { keys: 'Escape', description: 'Close modal/dialog' }
+        ];
+
+        const helpText = shortcuts.map(s => `${s.keys.padEnd(20)} - ${s.description}`).join('\n');
+
+        alert(`⌨️ KEYBOARD SHORTCUTS\n\n${helpText}\n\nNote: Shortcuts using numbers (1-4) are disabled when typing in input fields.`);
     }
 
     setupStateSubscriptions() {
@@ -1276,6 +1467,163 @@ class DormInspectorApp {
         } catch (error) {
             console.error('Sync from Firebase failed:', error);
             alert('❌ Sync failed: ' + error.message);
+        }
+    }
+
+    // Room Management Modal Methods
+    openRoomManagement() {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.show();
+        }
+    }
+
+    closeRoomManagement() {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.close();
+        }
+    }
+
+    saveRoomManagement() {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.save();
+            this.roomManagementModal.close();
+
+            // Refresh room grid if visible
+            if (this.roomGrid) {
+                this.roomGrid.render();
+            }
+        }
+    }
+
+    toggleRoomSelection(roomNum) {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.toggleRoomSelection(roomNum);
+        }
+    }
+
+    selectAllRoomsInMgmt() {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.selectAllRooms();
+        }
+    }
+
+    deselectAllRooms() {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.deselectAllRooms();
+        }
+    }
+
+    selectRoomsByFloor(floor) {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.selectRoomsByFloor(floor);
+        }
+    }
+
+    bulkSetGender(gender) {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.bulkSetGender(gender);
+        }
+    }
+
+    bulkSetShift(shift) {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.bulkSetShift(shift);
+        }
+    }
+
+    bulkClearProperties() {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.bulkClearProperties();
+        }
+    }
+
+    applyRoomPreset(preset) {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.applyPreset(preset);
+        }
+    }
+
+    clearAllRoomPropertiesFromModal() {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.clearAllRoomProperties();
+        }
+    }
+
+    filterRoomView() {
+        if (this.roomManagementModal) {
+            this.roomManagementModal.filterRoomView();
+        }
+    }
+
+    // Import Data Modal Methods
+    openImportInspections() {
+        if (this.importDataModal) {
+            this.importDataModal.show();
+        }
+    }
+
+    closeImportData() {
+        if (this.importDataModal) {
+            this.importDataModal.close();
+        }
+    }
+
+    handleImportFileSelect() {
+        if (this.importDataModal) {
+            this.importDataModal.handleFileSelect();
+        }
+    }
+
+    async confirmImport() {
+        if (this.importDataModal) {
+            await this.importDataModal.confirmImport();
+        }
+    }
+
+    refreshAfterImport() {
+        // Refresh inspections list
+        this.refreshInspectionsList();
+
+        // Refresh room grid if visible
+        if (this.roomGrid) {
+            this.roomGrid.render();
+        }
+
+        // Refresh reports if visible
+        if (this.reportsComponent && store.state.activeTab === 'reports') {
+            this.reportsComponent.render();
+        }
+    }
+
+    // Templates Modal Methods
+    openTemplates() {
+        if (this.templatesModal) {
+            this.templatesModal.show();
+        }
+    }
+
+    closeTemplates() {
+        if (this.templatesModal) {
+            this.templatesModal.close();
+        }
+    }
+
+    saveCurrentAsTemplate() {
+        const templateName = document.getElementById('template-name')?.value;
+        if (this.templatesModal) {
+            this.templatesModal.saveTemplate(templateName);
+        }
+    }
+
+    loadTemplate(index) {
+        if (this.templatesModal) {
+            this.templatesModal.loadTemplate(index);
+        }
+    }
+
+    deleteTemplate(index) {
+        if (this.templatesModal) {
+            this.templatesModal.deleteTemplate(index);
         }
     }
 
