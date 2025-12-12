@@ -18,6 +18,8 @@ import { InspectionCard } from './components/InspectionCard.js';
 import { InspectionTable } from './components/InspectionTable.js';
 import { EditInspectionModal } from './components/EditInspectionModal.js';
 import { ReportsComponent } from './components/ReportsComponent.js';
+import { SettingsPanel } from './components/SettingsPanel.js';
+import { RoomGrid } from './components/RoomGrid.js';
 
 // Import services
 import exportService from './services/exportService.js';
@@ -37,6 +39,8 @@ class DormInspectorApp {
         this.inspectionTable = new InspectionTable();
         this.editModal = null;
         this.reportsComponent = null;
+        this.settingsPanel = null;
+        this.roomGrid = null;
         this.viewMode = 'card'; // 'card', 'list', 'table'
         this.initialized = false;
     }
@@ -131,8 +135,13 @@ class DormInspectorApp {
                 <header class="header">
                     <div class="header-content">
                         <h1 class="header-title">🏠 Dorm Inspector</h1>
-                        <div style="color: white; font-size: 14px;" id="connection-status">
-                            ${store.state.isConnected ? '🟢 Connected' : '🔴 Offline'}
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div style="color: white; font-size: 14px;" id="connection-status">
+                                ${store.state.isConnected ? '🟢 Connected' : '🔴 Offline'}
+                            </div>
+                            <button id="settings-btn" class="btn btn-secondary btn-small" style="background: rgba(255,255,255,0.2); border: none; color: white;">
+                                ⚙️ Settings
+                            </button>
                         </div>
                     </div>
                 </header>
@@ -236,12 +245,7 @@ class DormInspectorApp {
 
                     <!-- Lists Section -->
                     <div id="lists-section" class="section">
-                        <div class="card">
-                            <h2>Inspection Lists</h2>
-                            <p style="color: var(--text-muted); margin-top: 12px;">
-                                List management features coming soon...
-                            </p>
-                        </div>
+                        <div id="room-grid-container"></div>
                     </div>
                 </main>
 
@@ -254,6 +258,9 @@ class DormInspectorApp {
                     <div style="font-weight: 600; margin-bottom: 8px;">Listening...</div>
                     <div id="voice-transcript" class="voice-transcript">Say a demerit name...</div>
                 </div>
+
+                <!-- Settings Panel Container -->
+                <div id="settings-container" style="display: none;"></div>
             </div>
         `;
 
@@ -274,9 +281,30 @@ class DormInspectorApp {
         this.reportsComponent = new ReportsComponent(reportsContainer);
         this.reportsComponent.render();
 
+        // Initialize settings panel
+        const settingsContainer = document.getElementById('settings-container');
+        this.settingsPanel = new SettingsPanel(settingsContainer);
+
+        // Initialize room grid
+        const roomGridContainer = document.getElementById('room-grid-container');
+        this.roomGrid = new RoomGrid(roomGridContainer);
+        this.roomGrid.render();
+
         // Setup global functions for onclick handlers
         window.editInspection = (id) => this.editInspection(id);
         window.deleteInspection = (id) => this.deleteInspection(id);
+        window.openSettings = () => this.openSettings();
+        window.closeSettings = () => this.closeSettings();
+        window.saveSettings = () => this.saveSettings();
+        window.resetSettings = () => this.resetSettings();
+        window.applyColorPreset = (preset) => this.applyColorPreset(preset);
+        window.toggleRoom = (roomNumber) => this.toggleRoom(roomNumber);
+        window.selectAllRooms = () => this.selectAllRooms();
+        window.clearSelection = () => this.clearSelection();
+        window.updateRoomFilters = () => this.updateRoomFilters();
+        window.createInspectionList = () => this.createInspectionList();
+        window.loadInspectionList = (id) => this.loadInspectionList(id);
+        window.deleteInspectionList = (id) => this.deleteInspectionList(id);
     }
 
     generateRoomOptions() {
@@ -312,6 +340,11 @@ class DormInspectorApp {
         // Voice button
         document.getElementById('voice-btn').addEventListener('click', () => {
             voiceService.toggle();
+        });
+
+        // Settings button
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            this.openSettings();
         });
 
         // View mode buttons
@@ -612,7 +645,7 @@ class DormInspectorApp {
             }
 
             // Remove from store
-            store.removeInspection(id);
+            store.deleteInspection(id);
 
             // Save to local storage
             storageService.save('inspections', store.getInspections());
@@ -638,6 +671,157 @@ class DormInspectorApp {
         } catch (error) {
             console.error('Delete failed:', error);
             alert('❌ Failed to delete inspection: ' + error.message);
+        }
+    }
+
+    openSettings() {
+        if (this.settingsPanel) {
+            this.settingsPanel.show();
+        }
+    }
+
+    closeSettings() {
+        if (this.settingsPanel) {
+            this.settingsPanel.close();
+        }
+    }
+
+    saveSettings() {
+        if (this.settingsPanel) {
+            this.settingsPanel.save();
+            this.settingsPanel.close();
+
+            // Re-render inspections list to apply new settings
+            const listEl = document.getElementById('inspections-list');
+            if (listEl) {
+                listEl.innerHTML = this.renderInspectionsList();
+            }
+
+            // Update reports if needed
+            if (this.reportsComponent && store.state.activeTab === 'reports') {
+                this.reportsComponent.render();
+            }
+
+            alert('✅ Settings saved successfully!');
+        }
+    }
+
+    resetSettings() {
+        if (confirm('Are you sure you want to reset all settings to defaults?')) {
+            if (this.settingsPanel) {
+                this.settingsPanel.reset();
+                alert('✅ Settings reset to defaults!');
+            }
+        }
+    }
+
+    applyColorPreset(preset) {
+        // Update active preset button
+        document.querySelectorAll('.color-preset-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.preset === preset);
+        });
+    }
+
+    toggleRoom(roomNumber) {
+        if (this.roomGrid) {
+            this.roomGrid.toggleRoom(roomNumber);
+        }
+    }
+
+    selectAllRooms() {
+        if (this.roomGrid) {
+            this.roomGrid.selectAll();
+        }
+    }
+
+    clearSelection() {
+        if (this.roomGrid) {
+            this.roomGrid.clearSelection();
+        }
+    }
+
+    updateRoomFilters() {
+        if (this.roomGrid) {
+            this.roomGrid.updateFilters();
+        }
+    }
+
+    createInspectionList() {
+        if (!this.roomGrid) return;
+
+        const selectedRooms = this.roomGrid.getSelectedRooms();
+        if (selectedRooms.length === 0) {
+            alert('Please select at least one room!');
+            return;
+        }
+
+        const name = prompt(`Enter a name for this inspection list (${selectedRooms.length} rooms):`);
+        if (!name) return;
+
+        const list = {
+            id: Date.now().toString(),
+            name: name,
+            rooms: selectedRooms,
+            createdAt: new Date().toISOString(),
+            lastUsed: null
+        };
+
+        // Update store
+        store.addInspectionList(list);
+
+        // Save to Firebase if connected
+        if (store.state.isConnected) {
+            firebaseService.saveInspectionLists(store.getInspectionLists());
+        }
+
+        // Save to local storage
+        storageService.save('inspectionLists', store.getInspectionLists());
+
+        alert(`✅ Inspection list "${name}" created with ${selectedRooms.length} rooms!`);
+
+        // Re-render
+        this.roomGrid.render();
+    }
+
+    loadInspectionList(id) {
+        const list = store.getInspectionLists().find(l => l.id === id);
+        if (!list) {
+            alert('List not found!');
+            return;
+        }
+
+        if (this.roomGrid) {
+            this.roomGrid.loadList(list.rooms);
+            alert(`✅ Loaded "${list.name}" with ${list.rooms.length} rooms`);
+        }
+    }
+
+    deleteInspectionList(id) {
+        const list = store.getInspectionLists().find(l => l.id === id);
+        if (!list) {
+            alert('List not found!');
+            return;
+        }
+
+        const confirmed = confirm(`Are you sure you want to delete "${list.name}"?`);
+        if (!confirmed) return;
+
+        // Remove from store
+        store.deleteInspectionList(id);
+
+        // Save to Firebase if connected
+        if (store.state.isConnected) {
+            firebaseService.saveInspectionLists(store.getInspectionLists());
+        }
+
+        // Save to local storage
+        storageService.save('inspectionLists', store.getInspectionLists());
+
+        alert(`✅ List "${list.name}" deleted!`);
+
+        // Re-render
+        if (this.roomGrid) {
+            this.roomGrid.render();
         }
     }
 
