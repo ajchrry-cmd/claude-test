@@ -20,6 +20,7 @@ import { EditInspectionModal } from './components/EditInspectionModal.js';
 import { ReportsComponent } from './components/ReportsComponent.js';
 import { SettingsPanel } from './components/SettingsPanel.js';
 import { RoomGrid } from './components/RoomGrid.js';
+import { AdminPanel } from './components/AdminPanel.js';
 
 // Import services
 import exportService from './services/exportService.js';
@@ -41,6 +42,9 @@ class DormInspectorApp {
         this.reportsComponent = null;
         this.settingsPanel = null;
         this.roomGrid = null;
+        this.adminPanel = null;
+        this.adminClickCount = 0;
+        this.adminClickTimeout = null;
         this.viewMode = 'card'; // 'card', 'list', 'table'
         this.searchQuery = '';
         this.filterStatus = 'all';
@@ -137,7 +141,7 @@ class DormInspectorApp {
                 <!-- Header -->
                 <header class="header">
                     <div class="header-content">
-                        <h1 class="header-title">🏠 Dorm Inspector</h1>
+                        <h1 class="header-title" id="header-title" style="cursor: pointer; user-select: none;" onclick="window.handleAdminClick()">🏠 Dorm Inspector</h1>
                         <div style="display: flex; align-items: center; gap: 16px;">
                             <div style="color: white; font-size: 14px;" id="connection-status">
                                 ${store.state.isConnected ? '🟢 Connected' : '🔴 Offline'}
@@ -297,6 +301,9 @@ class DormInspectorApp {
 
                 <!-- Settings Panel Container -->
                 <div id="settings-container" style="display: none;"></div>
+
+                <!-- Admin Panel Container -->
+                <div id="admin-container" style="display: none;"></div>
             </div>
         `;
 
@@ -326,6 +333,10 @@ class DormInspectorApp {
         this.roomGrid = new RoomGrid(roomGridContainer);
         this.roomGrid.render();
 
+        // Initialize admin panel
+        const adminContainer = document.getElementById('admin-container');
+        this.adminPanel = new AdminPanel(adminContainer);
+
         // Setup global functions for onclick handlers
         window.editInspection = (id) => this.editInspection(id);
         window.deleteInspection = (id) => this.deleteInspection(id);
@@ -347,6 +358,20 @@ class DormInspectorApp {
         window.updateSearch = () => this.updateSearch();
         window.updateFilters = () => this.updateFilters();
         window.clearFilters = () => this.clearFilters();
+        window.handleAdminClick = () => this.handleAdminClick();
+        window.closeAdminPanel = () => this.closeAdminPanel();
+        window.exportAllData = () => this.exportAllData();
+        window.importData = () => this.importData();
+        window.downloadBackup = () => this.exportAllData();
+        window.adminDeleteAllInspections = () => this.adminDeleteAllInspections();
+        window.adminClearRoomProperties = () => this.adminClearRoomProperties();
+        window.adminDeleteAllLists = () => this.adminDeleteAllLists();
+        window.adminResetSettings = () => this.adminResetSettings();
+        window.adminNuclearOption = () => this.adminNuclearOption();
+        window.syncToFirebase = () => this.syncToFirebase();
+        window.syncFromFirebase = () => this.syncFromFirebase();
+        window.clearLocalStorage = () => this.clearLocalStorage();
+        window.reloadApp = () => window.location.reload();
     }
 
     generateRoomOptions() {
@@ -996,6 +1021,275 @@ class DormInspectorApp {
         const listEl = document.getElementById('inspections-list');
         if (listEl) {
             listEl.innerHTML = this.renderInspectionsList();
+        }
+    }
+
+    // Admin Panel Methods
+    handleAdminClick() {
+        this.adminClickCount++;
+
+        // Reset counter after 2 seconds
+        clearTimeout(this.adminClickTimeout);
+        this.adminClickTimeout = setTimeout(() => {
+            this.adminClickCount = 0;
+        }, 2000);
+
+        // Open admin panel after 5 clicks
+        if (this.adminClickCount >= 5) {
+            this.adminClickCount = 0;
+            this.openAdminPanel();
+        }
+    }
+
+    openAdminPanel() {
+        if (this.adminPanel) {
+            this.adminPanel.show();
+        }
+    }
+
+    closeAdminPanel() {
+        if (this.adminPanel) {
+            this.adminPanel.close();
+        }
+    }
+
+    exportAllData() {
+        if (this.adminPanel) {
+            this.adminPanel.exportAllData();
+        }
+    }
+
+    importData() {
+        const fileInput = document.getElementById('import-file');
+        if (fileInput && fileInput.files.length > 0 && this.adminPanel) {
+            this.adminPanel.importData(fileInput.files[0]);
+        }
+    }
+
+    adminDeleteAllInspections() {
+        const confirmed = confirm(
+            '⚠️ WARNING: This will permanently delete ALL inspections!\n\n' +
+            'This action cannot be undone. Are you absolutely sure?'
+        );
+
+        if (!confirmed) return;
+
+        const doubleConfirm = confirm('Are you REALLY sure? Type your confirmation by clicking OK.');
+        if (!doubleConfirm) return;
+
+        try {
+            // Delete from Firebase
+            if (store.state.isConnected) {
+                firebaseService.deleteAllInspections();
+            }
+
+            // Clear from store
+            store.setInspections([]);
+
+            // Clear from localStorage
+            storageService.save('inspections', []);
+
+            alert('✅ All inspections deleted successfully!');
+
+            // Refresh UI
+            this.refreshInspectionsList();
+            if (this.reportsComponent) {
+                this.reportsComponent.render();
+            }
+            if (this.adminPanel) {
+                this.adminPanel.show(); // Re-render to update stats
+            }
+        } catch (error) {
+            console.error('Delete all failed:', error);
+            alert('❌ Failed to delete inspections: ' + error.message);
+        }
+    }
+
+    adminClearRoomProperties() {
+        const confirmed = confirm('Are you sure you want to clear all room properties (shift/gender)?');
+        if (!confirmed) return;
+
+        try {
+            store.setState({ roomProperties: {} });
+            storageService.save('roomProperties', {});
+
+            alert('✅ Room properties cleared!');
+
+            if (this.roomGrid) {
+                this.roomGrid.render();
+            }
+            if (this.adminPanel) {
+                this.adminPanel.show();
+            }
+        } catch (error) {
+            console.error('Clear room properties failed:', error);
+            alert('❌ Failed: ' + error.message);
+        }
+    }
+
+    adminDeleteAllLists() {
+        const confirmed = confirm('Are you sure you want to delete all inspection lists?');
+        if (!confirmed) return;
+
+        try {
+            // Clear from store
+            store.setInspectionLists([]);
+
+            // Clear from Firebase
+            if (store.state.isConnected) {
+                firebaseService.saveInspectionLists([]);
+            }
+
+            // Clear from localStorage
+            storageService.save('inspectionLists', []);
+
+            alert('✅ All lists deleted!');
+
+            if (this.roomGrid) {
+                this.roomGrid.render();
+            }
+            if (this.adminPanel) {
+                this.adminPanel.show();
+            }
+        } catch (error) {
+            console.error('Delete lists failed:', error);
+            alert('❌ Failed: ' + error.message);
+        }
+    }
+
+    adminResetSettings() {
+        const confirmed = confirm('Reset all settings to defaults?');
+        if (!confirmed) return;
+
+        try {
+            store.setSettings({ ...DEFAULT_SETTINGS });
+            storageService.save('settings', DEFAULT_SETTINGS);
+
+            if (this.settingsPanel) {
+                this.settingsPanel.applySettings(DEFAULT_SETTINGS);
+            }
+
+            alert('✅ Settings reset to defaults!');
+        } catch (error) {
+            console.error('Reset settings failed:', error);
+            alert('❌ Failed: ' + error.message);
+        }
+    }
+
+    adminNuclearOption() {
+        const confirmed = confirm(
+            '☢️ NUCLEAR OPTION ☢️\n\n' +
+            'This will DELETE EVERYTHING:\n' +
+            '- All inspections\n' +
+            '- All lists\n' +
+            '- All room properties\n' +
+            '- All settings\n\n' +
+            'This CANNOT be undone!\n\n' +
+            'Are you absolutely sure?'
+        );
+
+        if (!confirmed) return;
+
+        const verification = prompt('Type "DELETE EVERYTHING" to confirm:');
+        if (verification !== 'DELETE EVERYTHING') {
+            alert('Cancelled - verification text did not match');
+            return;
+        }
+
+        try {
+            // Clear everything
+            store.setInspections([]);
+            store.setInspectionLists([]);
+            store.setState({ roomProperties: {} });
+            store.setSettings({ ...DEFAULT_SETTINGS });
+
+            // Clear localStorage
+            storageService.save('inspections', []);
+            storageService.save('inspectionLists', []);
+            storageService.save('roomProperties', {});
+            storageService.save('settings', DEFAULT_SETTINGS);
+
+            // Clear Firebase if connected
+            if (store.state.isConnected) {
+                firebaseService.deleteAllInspections();
+                firebaseService.saveInspectionLists([]);
+            }
+
+            alert('☢️ Everything has been deleted. Reloading...');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+            console.error('Nuclear option failed:', error);
+            alert('❌ Failed: ' + error.message);
+        }
+    }
+
+    async syncToFirebase() {
+        if (!store.state.isConnected) {
+            alert('❌ Not connected to Firebase!');
+            return;
+        }
+
+        try {
+            const inspections = store.getInspections();
+            const lists = store.getInspectionLists();
+
+            // Save all data to Firebase
+            for (const inspection of inspections) {
+                await firebaseService.saveInspection(inspection);
+            }
+
+            await firebaseService.saveInspectionLists(lists);
+
+            alert(`✅ Synced ${inspections.length} inspections and ${lists.length} lists to Firebase!`);
+        } catch (error) {
+            console.error('Sync to Firebase failed:', error);
+            alert('❌ Sync failed: ' + error.message);
+        }
+    }
+
+    async syncFromFirebase() {
+        if (!store.state.isConnected) {
+            alert('❌ Not connected to Firebase!');
+            return;
+        }
+
+        try {
+            const inspections = await firebaseService.getInspections();
+            const lists = await firebaseService.getInspectionLists();
+
+            store.setInspections(inspections);
+            store.setInspectionLists(lists);
+
+            storageService.save('inspections', inspections);
+            storageService.save('inspectionLists', lists);
+
+            alert(`✅ Synced ${inspections.length} inspections and ${lists.length} lists from Firebase!`);
+
+            // Refresh UI
+            this.refreshInspectionsList();
+            if (this.roomGrid) {
+                this.roomGrid.render();
+            }
+            if (this.adminPanel) {
+                this.adminPanel.show();
+            }
+        } catch (error) {
+            console.error('Sync from Firebase failed:', error);
+            alert('❌ Sync failed: ' + error.message);
+        }
+    }
+
+    clearLocalStorage() {
+        const confirmed = confirm('Clear all localStorage data? This will not affect Firebase data.');
+        if (!confirmed) return;
+
+        try {
+            localStorage.clear();
+            alert('✅ LocalStorage cleared! Reloading...');
+            setTimeout(() => window.location.reload(), 1000);
+        } catch (error) {
+            console.error('Clear localStorage failed:', error);
+            alert('❌ Failed: ' + error.message);
         }
     }
 
