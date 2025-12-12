@@ -23,6 +23,7 @@ import { RoomGrid } from './components/RoomGrid.js';
 import { AdminPanel } from './components/AdminPanel.js';
 import { RoomManagementModal } from './components/RoomManagementModal.js';
 import { ImportDataModal } from './components/ImportDataModal.js';
+import { TemplatesModal } from './components/TemplatesModal.js';
 
 // Import services
 import exportService from './services/exportService.js';
@@ -47,6 +48,7 @@ class DormInspectorApp {
         this.adminPanel = null;
         this.roomManagementModal = null;
         this.importDataModal = null;
+        this.templatesModal = null;
         this.adminClickCount = 0;
         this.adminClickTimeout = null;
         this.viewMode = 'card'; // 'card', 'list', 'table'
@@ -231,6 +233,7 @@ class DormInspectorApp {
                             <div style="display: flex; gap: 12px; margin-top: 24px;">
                                 <button id="submit-btn" class="btn btn-primary">💾 Save Inspection</button>
                                 <button id="reset-btn" class="btn btn-secondary">🔄 Reset</button>
+                                <button id="templates-btn" class="btn btn-secondary">📋 Templates</button>
                             </div>
                         </div>
                     </div>
@@ -317,6 +320,9 @@ class DormInspectorApp {
 
                 <!-- Import Data Modal Container -->
                 <div id="import-data-container" style="display: none;"></div>
+
+                <!-- Templates Modal Container -->
+                <div id="templates-container" style="display: none;"></div>
             </div>
         `;
 
@@ -357,6 +363,10 @@ class DormInspectorApp {
         // Initialize import data modal
         const importDataContainer = document.getElementById('import-data-container');
         this.importDataModal = new ImportDataModal(importDataContainer);
+
+        // Initialize templates modal
+        const templatesContainer = document.getElementById('templates-container');
+        this.templatesModal = new TemplatesModal(templatesContainer, this.demeritGrid);
 
         // Setup global functions for onclick handlers
         window.editInspection = (id) => this.editInspection(id);
@@ -415,6 +425,13 @@ class DormInspectorApp {
         window.handleImportFileSelect = () => this.handleImportFileSelect();
         window.confirmImport = () => this.confirmImport();
         window.refreshAfterImport = () => this.refreshAfterImport();
+
+        // Templates Modal functions
+        window.openTemplates = () => this.openTemplates();
+        window.closeTemplates = () => this.closeTemplates();
+        window.saveCurrentAsTemplate = () => this.saveCurrentAsTemplate();
+        window.loadTemplate = (index) => this.loadTemplate(index);
+        window.deleteTemplate = (index) => this.deleteTemplate(index);
     }
 
     generateRoomOptions() {
@@ -445,6 +462,11 @@ class DormInspectorApp {
         // Reset button
         document.getElementById('reset-btn').addEventListener('click', () => {
             this.resetForm();
+        });
+
+        // Templates button
+        document.getElementById('templates-btn').addEventListener('click', () => {
+            this.openTemplates();
         });
 
         // Voice button
@@ -1449,6 +1471,38 @@ class DormInspectorApp {
         // Refresh reports if visible
         if (this.reportsComponent && store.state.activeTab === 'reports') {
             this.reportsComponent.render();
+        }
+    }
+
+    // Templates Modal Methods
+    openTemplates() {
+        if (this.templatesModal) {
+            this.templatesModal.show();
+        }
+    }
+
+    closeTemplates() {
+        if (this.templatesModal) {
+            this.templatesModal.close();
+        }
+    }
+
+    saveCurrentAsTemplate() {
+        const templateName = document.getElementById('template-name')?.value;
+        if (this.templatesModal) {
+            this.templatesModal.saveTemplate(templateName);
+        }
+    }
+
+    loadTemplate(index) {
+        if (this.templatesModal) {
+            this.templatesModal.loadTemplate(index);
+        }
+    }
+
+    deleteTemplate(index) {
+        if (this.templatesModal) {
+            this.templatesModal.deleteTemplate(index);
         }
     }
 
