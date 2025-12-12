@@ -18,7 +18,7 @@ export class ReportsComponent {
                 </div>
 
                 <!-- Date Filters -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                <div class="date-filters" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
                     <div class="form-group">
                         <label class="form-label">Start Date</label>
                         <input type="date" id="report-start-date" class="form-input" value="${this.startDate || ''}" onchange="window.updateReportDates()">
@@ -30,11 +30,11 @@ export class ReportsComponent {
                 </div>
 
                 <!-- Quick Filters -->
-                <div style="display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;">
-                    <button class="btn btn-secondary btn-small" onclick="window.setReportRange('week')">Last 7 Days</button>
-                    <button class="btn btn-secondary btn-small" onclick="window.setReportRange('month')">Last 30 Days</button>
-                    <button class="btn btn-secondary btn-small" onclick="window.setReportRange('all')">All Time</button>
-                    <button class="btn btn-secondary btn-small" onclick="window.clearReportRange()">Clear Filter</button>
+                <div class="quick-filters" style="display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary btn-small" onclick="window.setReportRange('week')">📅 Last 7 Days</button>
+                    <button class="btn btn-secondary btn-small" onclick="window.setReportRange('month')">📅 Last 30 Days</button>
+                    <button class="btn btn-secondary btn-small" onclick="window.setReportRange('all')">📊 All Time</button>
+                    <button class="btn btn-secondary btn-small" onclick="window.clearReportRange()">✕ Clear</button>
                 </div>
 
                 <!-- Report Content -->
@@ -70,7 +70,7 @@ export class ReportsComponent {
 
         let html = `
             <!-- Summary Stats -->
-            <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 32px;">
+            <div class="stats-grid summary-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 32px;">
                 <div class="stat-card" style="background: var(--surface-light); padding: 20px; border-radius: 12px; text-align: center;">
                     <div style="font-size: 36px; font-weight: 800; color: var(--text-primary);">${total}</div>
                     <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-top: 4px;">Total</div>

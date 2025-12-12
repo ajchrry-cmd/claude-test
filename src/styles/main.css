@@ -487,3 +487,341 @@ body {
         padding: 2px 4px;
     }
 }
+
+/* Mobile Responsive Improvements */
+@media (max-width: 768px) {
+    /* Header improvements */
+    .header {
+        padding: 16px;
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .header-title {
+        font-size: 20px;
+        text-align: center;
+    }
+
+    #settings-btn {
+        width: 100%;
+        padding: 10px 16px !important;
+        font-size: 16px !important;
+    }
+
+    /* Navigation tabs */
+    .nav-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .nav-tab {
+        padding: 12px 8px;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Main content padding */
+    .main-content {
+        padding: 12px;
+    }
+
+    .card {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    /* Form improvements */
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-label {
+        font-size: 14px;
+        margin-bottom: 6px;
+    }
+
+    .form-input,
+    .form-select {
+        padding: 12px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 44px; /* Minimum touch target */
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 12px 20px;
+        font-size: 16px;
+        min-height: 44px;
+        width: 100%;
+    }
+
+    .btn-small {
+        padding: 10px 16px;
+        font-size: 14px;
+        min-height: 40px;
+        width: auto;
+    }
+
+    /* History section header - stack vertically */
+    #history-section .card > div:first-child {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    #history-section .card > div:first-child > div {
+        width: 100%;
+    }
+
+    #history-section .card > div:first-child > div:last-child {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    #export-excel-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* View mode buttons */
+    .view-mode-btn {
+        padding: 12px 16px;
+        font-size: 18px;
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Settings panel modal */
+    .modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
+
+    .modal-content {
+        max-height: 95vh;
+        border-radius: 16px 16px 0 0;
+        max-width: 100%;
+    }
+
+    .modal-body > div {
+        grid-template-columns: 1fr !important;
+        gap: 16px;
+    }
+
+    .settings-section {
+        margin-bottom: 20px;
+    }
+
+    /* Modal footer */
+    .modal-footer {
+        flex-direction: column-reverse;
+        gap: 8px;
+    }
+
+    .modal-footer .btn {
+        width: 100%;
+    }
+
+    .modal-footer > div {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    /* Room grid filters - stack vertically */
+    #room-grid-container .card > div:nth-child(2) {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    #room-grid-container .card > div:nth-child(2) > div {
+        width: 100%;
+    }
+
+    /* Room grid header buttons */
+    #room-grid-container .card > div:first-child {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+
+    #room-grid-container .card > div:first-child > div:last-child {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    #room-grid-container .card > div:first-child button {
+        width: 100%;
+    }
+
+    /* Inspection cards - ensure proper spacing */
+    .inspection-card {
+        padding: 12px;
+    }
+
+    /* Table horizontal scroll */
+    .inspection-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 600px;
+    }
+
+    /* Reports section */
+    .reports-header {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .date-filters {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .date-filters input {
+        width: 100%;
+    }
+
+    .quick-filters {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    /* Chart improvements */
+    .chart-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .summary-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px;
+    }
+
+    /* Voice feedback */
+    .voice-feedback {
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 32px);
+        max-width: none;
+    }
+
+    /* Shift and gender form fields - remain side by side but smaller gap */
+    div[style*="grid-template-columns: 1fr 1fr"] {
+        gap: 8px !important;
+    }
+
+    /* Reduce empty state icon size */
+    .empty-state-icon {
+        font-size: 40px;
+    }
+
+    .empty-state {
+        padding: 40px 16px;
+    }
+
+    /* Touch-friendly checkboxes */
+    .checkbox-label {
+        padding: 12px 0;
+        min-height: 44px;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+    }
+
+    /* Color preset buttons */
+    .color-preset-btn {
+        padding: 10px;
+        min-height: 44px;
+    }
+}
+
+/* Extra small devices (phones in portrait) */
+@media (max-width: 480px) {
+    .header-title {
+        font-size: 18px;
+    }
+
+    .nav-tab {
+        font-size: 12px;
+        padding: 10px 6px;
+    }
+
+    .card {
+        padding: 12px;
+    }
+
+    h2 {
+        font-size: 18px;
+    }
+
+    h3 {
+        font-size: 16px;
+    }
+
+    /* Summary stats single column on very small screens */
+    .summary-stats {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Room grid even smaller */
+    .room-grid {
+        grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
+        gap: 4px;
+    }
+
+    .room-number {
+        font-size: 14px;
+    }
+
+    .room-badge {
+        font-size: 8px;
+        padding: 1px 3px;
+    }
+}
+
+/* Landscape mobile improvements */
+@media (max-width: 768px) and (orientation: landscape) {
+    .header {
+        padding: 12px 16px;
+    }
+
+    .header-content {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+    .nav-tabs {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .modal-content {
+        max-height: 90vh;
+    }
+}
+
+/* Ensure touch targets are accessible */
+@media (hover: none) and (pointer: coarse) {
+    /* Touch device specific styles */
+    button,
+    a,
+    .clickable {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Prevent double-tap zoom */
+    * {
+        touch-action: manipulation;
+    }
+}

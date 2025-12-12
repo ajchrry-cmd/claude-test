@@ -37,8 +37,8 @@ export class InspectionTable {
         const rows = inspections.map(inspection => this.renderRow(inspection, settings, cellPadding, fontSize)).join('');
 
         return `
-            <div style="overflow-x: auto; border-radius: ${settings.borderRadius}px; border: 1px solid var(--border);">
-                <table style="width: 100%; border-collapse: collapse; font-size: ${fontSize}; background: var(--surface);">
+            <div class="inspection-table-container" style="overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: ${settings.borderRadius}px; border: 1px solid var(--border);">
+                <table style="width: 100%; border-collapse: collapse; font-size: ${fontSize}; background: var(--surface); min-width: 600px;">
                     <thead>
                         <tr>
                             ${headers}
@@ -110,9 +110,9 @@ export class InspectionTable {
 
         // Actions
         cells += `<td style="padding: ${cellPadding}; border-bottom: 1px solid var(--border); text-align: center;">
-            <div style="display: flex; gap: 6px; justify-content: center;">
-                <button onclick="window.editInspection('${inspection.id}')" style="padding: 4px 10px; background: var(--warning); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;">Edit</button>
-                <button onclick="window.deleteInspection('${inspection.id}')" style="padding: 4px 10px; background: var(--error); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;">Delete</button>
+            <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                <button onclick="window.editInspection('${inspection.id}')" style="padding: 8px 12px; background: var(--warning); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; min-height: 32px; white-space: nowrap;">✏️ Edit</button>
+                <button onclick="window.deleteInspection('${inspection.id}')" style="padding: 8px 12px; background: var(--error); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; min-height: 32px; white-space: nowrap;">🗑️ Delete</button>
             </div>
         </td>`;
 

@@ -305,6 +305,9 @@ class DormInspectorApp {
         window.createInspectionList = () => this.createInspectionList();
         window.loadInspectionList = (id) => this.loadInspectionList(id);
         window.deleteInspectionList = (id) => this.deleteInspectionList(id);
+        window.updateReportDates = () => this.updateReportDates();
+        window.setReportRange = (range) => this.setReportRange(range);
+        window.clearReportRange = () => this.clearReportRange();
     }
 
     generateRoomOptions() {
@@ -822,6 +825,45 @@ class DormInspectorApp {
         // Re-render
         if (this.roomGrid) {
             this.roomGrid.render();
+        }
+    }
+
+    updateReportDates() {
+        if (this.reportsComponent) {
+            const startDate = document.getElementById('report-start-date')?.value;
+            const endDate = document.getElementById('report-end-date')?.value;
+            this.reportsComponent.startDate = startDate || null;
+            this.reportsComponent.endDate = endDate || null;
+            this.reportsComponent.render();
+        }
+    }
+
+    setReportRange(range) {
+        if (!this.reportsComponent) return;
+
+        const today = new Date();
+        let startDate = null;
+
+        if (range === 'week') {
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            startDate = weekAgo.toISOString().split('T')[0];
+        } else if (range === 'month') {
+            const monthAgo = new Date(today);
+            monthAgo.setDate(monthAgo.getDate() - 30);
+            startDate = monthAgo.toISOString().split('T')[0];
+        }
+
+        this.reportsComponent.startDate = startDate;
+        this.reportsComponent.endDate = null;
+        this.reportsComponent.render();
+    }
+
+    clearReportRange() {
+        if (this.reportsComponent) {
+            this.reportsComponent.startDate = null;
+            this.reportsComponent.endDate = null;
+            this.reportsComponent.render();
         }
     }
 
