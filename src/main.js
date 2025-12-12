@@ -22,6 +22,7 @@ import { SettingsPanel } from './components/SettingsPanel.js';
 import { RoomGrid } from './components/RoomGrid.js';
 import { AdminPanel } from './components/AdminPanel.js';
 import { RoomManagementModal } from './components/RoomManagementModal.js';
+import { ImportDataModal } from './components/ImportDataModal.js';
 
 // Import services
 import exportService from './services/exportService.js';
@@ -45,6 +46,7 @@ class DormInspectorApp {
         this.roomGrid = null;
         this.adminPanel = null;
         this.roomManagementModal = null;
+        this.importDataModal = null;
         this.adminClickCount = 0;
         this.adminClickTimeout = null;
         this.viewMode = 'card'; // 'card', 'list', 'table'
@@ -312,6 +314,9 @@ class DormInspectorApp {
 
                 <!-- Room Management Modal Container -->
                 <div id="room-mgmt-container" style="display: none;"></div>
+
+                <!-- Import Data Modal Container -->
+                <div id="import-data-container" style="display: none;"></div>
             </div>
         `;
 
@@ -348,6 +353,10 @@ class DormInspectorApp {
         // Initialize room management modal
         const roomMgmtContainer = document.getElementById('room-mgmt-container');
         this.roomManagementModal = new RoomManagementModal(roomMgmtContainer);
+
+        // Initialize import data modal
+        const importDataContainer = document.getElementById('import-data-container');
+        this.importDataModal = new ImportDataModal(importDataContainer);
 
         // Setup global functions for onclick handlers
         window.editInspection = (id) => this.editInspection(id);
@@ -399,6 +408,13 @@ class DormInspectorApp {
         window.applyPreset = (preset) => this.applyRoomPreset(preset);
         window.clearAllRoomProperties = () => this.clearAllRoomPropertiesFromModal();
         window.filterRoomView = () => this.filterRoomView();
+
+        // Import Data Modal functions
+        window.openImportInspections = () => this.openImportInspections();
+        window.closeImportData = () => this.closeImportData();
+        window.handleImportFileSelect = () => this.handleImportFileSelect();
+        window.confirmImport = () => this.confirmImport();
+        window.refreshAfterImport = () => this.refreshAfterImport();
     }
 
     generateRoomOptions() {
@@ -1393,6 +1409,46 @@ class DormInspectorApp {
     filterRoomView() {
         if (this.roomManagementModal) {
             this.roomManagementModal.filterRoomView();
+        }
+    }
+
+    // Import Data Modal Methods
+    openImportInspections() {
+        if (this.importDataModal) {
+            this.importDataModal.show();
+        }
+    }
+
+    closeImportData() {
+        if (this.importDataModal) {
+            this.importDataModal.close();
+        }
+    }
+
+    handleImportFileSelect() {
+        if (this.importDataModal) {
+            this.importDataModal.handleFileSelect();
+        }
+    }
+
+    async confirmImport() {
+        if (this.importDataModal) {
+            await this.importDataModal.confirmImport();
+        }
+    }
+
+    refreshAfterImport() {
+        // Refresh inspections list
+        this.refreshInspectionsList();
+
+        // Refresh room grid if visible
+        if (this.roomGrid) {
+            this.roomGrid.render();
+        }
+
+        // Refresh reports if visible
+        if (this.reportsComponent && store.state.activeTab === 'reports') {
+            this.reportsComponent.render();
         }
     }
 
