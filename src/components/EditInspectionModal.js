@@ -72,6 +72,11 @@ export class EditInspectionModal {
                         <input type="date" id="edit-inspection-date" class="form-input" value="${this.currentInspection.inspectionDate || getTodayString()}">
                     </div>
 
+                    <div class="form-group">
+                        <label class="form-label">Notes (Optional)</label>
+                        <textarea id="edit-inspection-notes" class="form-input" rows="3" placeholder="Add any additional notes or observations...">${this.currentInspection.notes || ''}</textarea>
+                    </div>
+
                     <!-- Score Display -->
                     <div id="edit-score-container"></div>
 
@@ -139,11 +144,11 @@ export class EditInspectionModal {
             ...this.currentInspection,
             inspectorName: document.getElementById('edit-inspector-name')?.value || '',
             inspectionDate: document.getElementById('edit-inspection-date')?.value || getTodayString(),
+            notes: document.getElementById('edit-inspection-notes')?.value?.trim() || '',
             demerits: demerits.regular,
             autoFailureDemerits: demerits.autoFailure,
             score: scoreResult.score,
             status: scoreResult.status,
-            notes: document.getElementById('edit-notes')?.value || '',
             updatedAt: new Date().toISOString()
         };
     }

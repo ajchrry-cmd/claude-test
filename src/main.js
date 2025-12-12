@@ -202,6 +202,11 @@ class DormInspectorApp {
                                 <input type="date" id="inspection-date" class="form-input" value="${getTodayString()}">
                             </div>
 
+                            <div class="form-group">
+                                <label class="form-label">Notes (Optional)</label>
+                                <textarea id="inspection-notes" class="form-input" rows="3" placeholder="Add any additional notes or observations about this inspection..."></textarea>
+                            </div>
+
                             <!-- Score Display -->
                             <div id="score-container"></div>
 
@@ -411,6 +416,7 @@ class DormInspectorApp {
         const inspectionDate = document.getElementById('inspection-date').value;
         const shift = document.getElementById('room-shift').value;
         const gender = document.getElementById('room-gender').value;
+        const notes = document.getElementById('inspection-notes').value.trim();
         const demerits = this.demeritGrid.getSelected();
         const score = this.scoreDisplay.getResult();
 
@@ -422,6 +428,7 @@ class DormInspectorApp {
             autoFailureDemerits: demerits.autoFailure,
             score: score.score,
             status: score.status,
+            notes: notes || '',
             timestamp: new Date().toISOString()
         };
 
@@ -485,6 +492,9 @@ class DormInspectorApp {
         document.getElementById('room-number').value = '';
         document.getElementById('inspector-name').value = '';
         document.getElementById('inspection-date').value = getTodayString();
+        document.getElementById('room-shift').value = '';
+        document.getElementById('room-gender').value = '';
+        document.getElementById('inspection-notes').value = '';
 
         if (this.demeritGrid) {
             this.demeritGrid.reset();
