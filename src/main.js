@@ -42,6 +42,9 @@ class DormInspectorApp {
         this.settingsPanel = null;
         this.roomGrid = null;
         this.viewMode = 'card'; // 'card', 'list', 'table'
+        this.searchQuery = '';
+        this.filterStatus = 'all';
+        this.filterInspector = 'all';
         this.initialized = false;
     }
 
@@ -237,6 +240,34 @@ class DormInspectorApp {
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Search and Filters -->
+                            <div style="background: var(--surface-light); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <input type="text" id="search-input" class="form-input" placeholder="🔍 Search by room, inspector, or notes..." oninput="window.updateSearch()">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <select id="filter-status" class="form-select" onchange="window.updateFilters()">
+                                            <option value="all">All Status</option>
+                                            <option value="OUTSTANDING">Outstanding</option>
+                                            <option value="PASSED">Passed</option>
+                                            <option value="FAILED">Failed</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <select id="filter-inspector" class="form-select" onchange="window.updateFilters()">
+                                            <option value="all">All Inspectors</option>
+                                            ${INSPECTOR_NAMES.map(name => `<option value="${name}">${name}</option>`).join('')}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span style="font-size: 14px; color: var(--text-muted);" id="results-count"></span>
+                                    <button class="btn btn-secondary btn-small" onclick="window.clearFilters()" style="margin-left: auto;">✕ Clear Filters</button>
+                                </div>
+                            </div>
+
                             <div id="inspections-list">
                                 ${this.renderInspectionsList()}
                             </div>
@@ -313,6 +344,9 @@ class DormInspectorApp {
         window.updateReportDates = () => this.updateReportDates();
         window.setReportRange = (range) => this.setReportRange(range);
         window.clearReportRange = () => this.clearReportRange();
+        window.updateSearch = () => this.updateSearch();
+        window.updateFilters = () => this.updateFilters();
+        window.clearFilters = () => this.clearFilters();
     }
 
     generateRoomOptions() {
@@ -506,13 +540,29 @@ class DormInspectorApp {
     }
 
     renderInspectionsList() {
-        const inspections = store.getInspections();
+        let inspections = store.getInspections();
+
+        // Apply filters
+        inspections = this.applyFilters(inspections);
+
+        // Update results count
+        const countEl = document.getElementById('results-count');
+        if (countEl) {
+            const total = store.getInspections().length;
+            const filtered = inspections.length;
+            if (filtered === total) {
+                countEl.textContent = `Showing all ${total} inspection${total !== 1 ? 's' : ''}`;
+            } else {
+                countEl.textContent = `Showing ${filtered} of ${total} inspection${total !== 1 ? 's' : ''}`;
+            }
+        }
 
         if (inspections.length === 0) {
+            const hasFilters = this.searchQuery || this.filterStatus !== 'all' || this.filterInspector !== 'all';
             return `
                 <div class="empty-state">
                     <div class="empty-state-icon">📋</div>
-                    <div>No inspections yet. Create your first inspection!</div>
+                    <div>${hasFilters ? 'No inspections match your filters' : 'No inspections yet. Create your first inspection!'}</div>
                 </div>
             `;
         }
@@ -874,6 +924,78 @@ class DormInspectorApp {
             this.reportsComponent.startDate = null;
             this.reportsComponent.endDate = null;
             this.reportsComponent.render();
+        }
+    }
+
+    applyFilters(inspections) {
+        let filtered = [...inspections];
+
+        // Apply search query
+        if (this.searchQuery) {
+            const query = this.searchQuery.toLowerCase();
+            filtered = filtered.filter(insp =>
+                insp.roomNumber?.toString().toLowerCase().includes(query) ||
+                insp.inspectorName?.toLowerCase().includes(query) ||
+                insp.notes?.toLowerCase().includes(query)
+            );
+        }
+
+        // Apply status filter
+        if (this.filterStatus !== 'all') {
+            filtered = filtered.filter(insp => insp.status === this.filterStatus);
+        }
+
+        // Apply inspector filter
+        if (this.filterInspector !== 'all') {
+            filtered = filtered.filter(insp => insp.inspectorName === this.filterInspector);
+        }
+
+        return filtered;
+    }
+
+    updateSearch() {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            this.searchQuery = searchInput.value.trim();
+            this.refreshInspectionsList();
+        }
+    }
+
+    updateFilters() {
+        const statusFilter = document.getElementById('filter-status');
+        const inspectorFilter = document.getElementById('filter-inspector');
+
+        if (statusFilter) {
+            this.filterStatus = statusFilter.value;
+        }
+
+        if (inspectorFilter) {
+            this.filterInspector = inspectorFilter.value;
+        }
+
+        this.refreshInspectionsList();
+    }
+
+    clearFilters() {
+        this.searchQuery = '';
+        this.filterStatus = 'all';
+        this.filterInspector = 'all';
+
+        const searchInput = document.getElementById('search-input');
+        const statusFilter = document.getElementById('filter-status');
+        const inspectorFilter = document.getElementById('filter-inspector');
+
+        if (searchInput) searchInput.value = '';
+        if (statusFilter) statusFilter.value = 'all';
+        if (inspectorFilter) inspectorFilter.value = 'all';
+
+        this.refreshInspectionsList();
+    }
+
+    refreshInspectionsList() {
+        const listEl = document.getElementById('inspections-list');
+        if (listEl) {
+            listEl.innerHTML = this.renderInspectionsList();
         }
     }
 
