@@ -1,10 +1,7 @@
+import * as XLSX from 'xlsx';
+
 class ExportService {
     async exportToExcel(inspections) {
-        // Check if XLSX library is loaded
-        if (typeof XLSX === 'undefined') {
-            throw new Error('XLSX library not loaded');
-        }
-
         try {
             const wb = XLSX.utils.book_new();
 
