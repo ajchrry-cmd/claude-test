@@ -18,6 +18,7 @@ import { InspectionCard } from './components/InspectionCard.js';
 import { InspectionTable } from './components/InspectionTable.js';
 import { EditInspectionModal } from './components/EditInspectionModal.js';
 import { ReportsComponent } from './components/ReportsComponent.js';
+import { SettingsPanel } from './components/SettingsPanel.js';
 
 // Import services
 import exportService from './services/exportService.js';
@@ -37,6 +38,7 @@ class DormInspectorApp {
         this.inspectionTable = new InspectionTable();
         this.editModal = null;
         this.reportsComponent = null;
+        this.settingsPanel = null;
         this.viewMode = 'card'; // 'card', 'list', 'table'
         this.initialized = false;
     }
@@ -131,8 +133,13 @@ class DormInspectorApp {
                 <header class="header">
                     <div class="header-content">
                         <h1 class="header-title">🏠 Dorm Inspector</h1>
-                        <div style="color: white; font-size: 14px;" id="connection-status">
-                            ${store.state.isConnected ? '🟢 Connected' : '🔴 Offline'}
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div style="color: white; font-size: 14px;" id="connection-status">
+                                ${store.state.isConnected ? '🟢 Connected' : '🔴 Offline'}
+                            </div>
+                            <button id="settings-btn" class="btn btn-secondary btn-small" style="background: rgba(255,255,255,0.2); border: none; color: white;">
+                                ⚙️ Settings
+                            </button>
                         </div>
                     </div>
                 </header>
@@ -254,6 +261,9 @@ class DormInspectorApp {
                     <div style="font-weight: 600; margin-bottom: 8px;">Listening...</div>
                     <div id="voice-transcript" class="voice-transcript">Say a demerit name...</div>
                 </div>
+
+                <!-- Settings Panel Container -->
+                <div id="settings-container" style="display: none;"></div>
             </div>
         `;
 
@@ -274,9 +284,18 @@ class DormInspectorApp {
         this.reportsComponent = new ReportsComponent(reportsContainer);
         this.reportsComponent.render();
 
+        // Initialize settings panel
+        const settingsContainer = document.getElementById('settings-container');
+        this.settingsPanel = new SettingsPanel(settingsContainer);
+
         // Setup global functions for onclick handlers
         window.editInspection = (id) => this.editInspection(id);
         window.deleteInspection = (id) => this.deleteInspection(id);
+        window.openSettings = () => this.openSettings();
+        window.closeSettings = () => this.closeSettings();
+        window.saveSettings = () => this.saveSettings();
+        window.resetSettings = () => this.resetSettings();
+        window.applyColorPreset = (preset) => this.applyColorPreset(preset);
     }
 
     generateRoomOptions() {
@@ -312,6 +331,11 @@ class DormInspectorApp {
         // Voice button
         document.getElementById('voice-btn').addEventListener('click', () => {
             voiceService.toggle();
+        });
+
+        // Settings button
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            this.openSettings();
         });
 
         // View mode buttons
@@ -612,7 +636,7 @@ class DormInspectorApp {
             }
 
             // Remove from store
-            store.removeInspection(id);
+            store.deleteInspection(id);
 
             // Save to local storage
             storageService.save('inspections', store.getInspections());
@@ -639,6 +663,54 @@ class DormInspectorApp {
             console.error('Delete failed:', error);
             alert('❌ Failed to delete inspection: ' + error.message);
         }
+    }
+
+    openSettings() {
+        if (this.settingsPanel) {
+            this.settingsPanel.show();
+        }
+    }
+
+    closeSettings() {
+        if (this.settingsPanel) {
+            this.settingsPanel.close();
+        }
+    }
+
+    saveSettings() {
+        if (this.settingsPanel) {
+            this.settingsPanel.save();
+            this.settingsPanel.close();
+
+            // Re-render inspections list to apply new settings
+            const listEl = document.getElementById('inspections-list');
+            if (listEl) {
+                listEl.innerHTML = this.renderInspectionsList();
+            }
+
+            // Update reports if needed
+            if (this.reportsComponent && store.state.activeTab === 'reports') {
+                this.reportsComponent.render();
+            }
+
+            alert('✅ Settings saved successfully!');
+        }
+    }
+
+    resetSettings() {
+        if (confirm('Are you sure you want to reset all settings to defaults?')) {
+            if (this.settingsPanel) {
+                this.settingsPanel.reset();
+                alert('✅ Settings reset to defaults!');
+            }
+        }
+    }
+
+    applyColorPreset(preset) {
+        // Update active preset button
+        document.querySelectorAll('.color-preset-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.preset === preset);
+        });
     }
 
     applyTheme(theme) {
