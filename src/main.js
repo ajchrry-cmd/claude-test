@@ -496,6 +496,127 @@ class DormInspectorApp {
         document.getElementById('export-excel-btn').addEventListener('click', async () => {
             await this.exportToExcel();
         });
+
+        // Setup keyboard shortcuts
+        this.setupKeyboardShortcuts();
+    }
+
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Check if user is typing in an input field
+            const isInputFocused = document.activeElement.tagName === 'INPUT' ||
+                                   document.activeElement.tagName === 'TEXTAREA' ||
+                                   document.activeElement.tagName === 'SELECT';
+
+            // Ctrl/Cmd + S: Save inspection
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (store.state.activeTab === 'inspect') {
+                    this.saveInspection();
+                }
+                return;
+            }
+
+            // Ctrl/Cmd + R: Reset form
+            if ((e.ctrlKey || e.metaKey) && e.key === 'r' && store.state.activeTab === 'inspect') {
+                e.preventDefault();
+                this.resetForm();
+                return;
+            }
+
+            // Ctrl/Cmd + T: Open templates
+            if ((e.ctrlKey || e.metaKey) && e.key === 't' && store.state.activeTab === 'inspect') {
+                e.preventDefault();
+                this.openTemplates();
+                return;
+            }
+
+            // Ctrl/Cmd + ,: Open settings
+            if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+                e.preventDefault();
+                this.openSettings();
+                return;
+            }
+
+            // Ctrl/Cmd + M: Open room management
+            if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+                e.preventDefault();
+                this.openRoomManagement();
+                return;
+            }
+
+            // Ctrl/Cmd + P: Print (let browser handle, but show message)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                // Don't prevent default - let browser handle print
+                console.log('Print shortcut detected');
+                return;
+            }
+
+            // Ctrl/Cmd + /: Show keyboard shortcuts help
+            if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+                e.preventDefault();
+                this.showKeyboardShortcutsHelp();
+                return;
+            }
+
+            // Number keys 1-4: Switch tabs (only when not in input)
+            if (!isInputFocused && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                switch(e.key) {
+                    case '1':
+                        e.preventDefault();
+                        this.switchTab('inspect');
+                        return;
+                    case '2':
+                        e.preventDefault();
+                        this.switchTab('history');
+                        return;
+                    case '3':
+                        e.preventDefault();
+                        this.switchTab('reports');
+                        return;
+                    case '4':
+                        e.preventDefault();
+                        this.switchTab('room-setup');
+                        return;
+                }
+            }
+
+            // Escape: Close modals
+            if (e.key === 'Escape') {
+                if (this.settingsPanel && this.settingsPanel.container.style.display !== 'none') {
+                    this.closeSettings();
+                } else if (this.adminPanel && this.adminPanel.container.style.display !== 'none') {
+                    this.closeAdminPanel();
+                } else if (this.roomManagementModal && this.roomManagementModal.container.style.display !== 'none') {
+                    this.closeRoomManagement();
+                } else if (this.importDataModal && this.importDataModal.container.style.display !== 'none') {
+                    this.closeImportData();
+                } else if (this.templatesModal && this.templatesModal.container.style.display !== 'none') {
+                    this.closeTemplates();
+                } else if (this.editModal && this.editModal.container.style.display !== 'none') {
+                    this.editModal.close();
+                }
+                return;
+            }
+        });
+    }
+
+    showKeyboardShortcutsHelp() {
+        const shortcuts = [
+            { keys: '1, 2, 3, 4', description: 'Switch between tabs (Inspect, History, Reports, Room Setup)' },
+            { keys: 'Ctrl/Cmd + S', description: 'Save current inspection' },
+            { keys: 'Ctrl/Cmd + R', description: 'Reset inspection form' },
+            { keys: 'Ctrl/Cmd + T', description: 'Open templates' },
+            { keys: 'Ctrl/Cmd + ,', description: 'Open settings' },
+            { keys: 'Ctrl/Cmd + M', description: 'Open room management' },
+            { keys: 'Ctrl/Cmd + P', description: 'Print current view' },
+            { keys: 'Ctrl/Cmd + /', description: 'Show this help' },
+            { keys: 'Escape', description: 'Close modal/dialog' }
+        ];
+
+        const helpText = shortcuts.map(s => `${s.keys.padEnd(20)} - ${s.description}`).join('\n');
+
+        alert(`⌨️ KEYBOARD SHORTCUTS\n\n${helpText}\n\nNote: Shortcuts using numbers (1-4) are disabled when typing in input fields.`);
     }
 
     setupStateSubscriptions() {
