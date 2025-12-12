@@ -352,6 +352,13 @@ body {
     border: none;
 }
 
+.color-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
 .color-preset-btn {
     display: flex;
     gap: 4px;
@@ -743,6 +750,11 @@ body {
     .color-preset-btn {
         padding: 10px;
         min-height: 44px;
+    }
+
+    /* Color preset grid - 2 columns on mobile */
+    .color-preset-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
