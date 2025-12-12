@@ -380,3 +380,110 @@ body {
     border: 2px solid white;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
+
+/* Room Grid */
+.room-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.room-tile {
+    position: relative;
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-light);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 8px;
+}
+
+.room-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow);
+    border-color: var(--primary);
+}
+
+.room-tile.selected {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    border-width: 3px;
+}
+
+.room-tile.inspected {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.room-number {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.room-badges {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.room-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    color: white;
+}
+
+.room-badge.shift-s {
+    background: #10b981;
+}
+
+.room-badge.shift-t {
+    background: #f59e0b;
+}
+
+.room-badge.shift-r {
+    background: #ef4444;
+}
+
+.room-badge.gender-badge {
+    background: #8b5cf6;
+}
+
+.room-inspected-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    background: #10b981;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+@media (max-width: 768px) {
+    .room-grid {
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+        gap: 6px;
+    }
+
+    .room-number {
+        font-size: 16px;
+    }
+
+    .room-badge {
+        font-size: 9px;
+        padding: 2px 4px;
+    }
+}
