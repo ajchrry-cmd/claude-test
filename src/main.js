@@ -14,6 +14,13 @@ import { vibrate } from './utils/domUtils.js';
 // Import components
 import { DemeritGrid } from './components/DemeritGrid.js';
 import { ScoreDisplay } from './components/ScoreDisplay.js';
+import { InspectionCard } from './components/InspectionCard.js';
+import { InspectionTable } from './components/InspectionTable.js';
+import { EditInspectionModal } from './components/EditInspectionModal.js';
+import { ReportsComponent } from './components/ReportsComponent.js';
+
+// Import services
+import exportService from './services/exportService.js';
 
 // Import configuration
 import { INSPECTOR_NAMES, ROOM_RANGES } from './config/constants.js';
@@ -26,6 +33,11 @@ class DormInspectorApp {
     constructor() {
         this.demeritGrid = null;
         this.scoreDisplay = null;
+        this.inspectionCard = new InspectionCard();
+        this.inspectionTable = new InspectionTable();
+        this.editModal = null;
+        this.reportsComponent = null;
+        this.viewMode = 'card'; // 'card', 'list', 'table'
         this.initialized = false;
     }
 
@@ -131,6 +143,7 @@ class DormInspectorApp {
                     <div class="nav-tabs">
                         <button class="nav-tab active" data-tab="inspect">🔍 Inspect</button>
                         <button class="nav-tab" data-tab="history">📋 History</button>
+                        <button class="nav-tab" data-tab="reports">📊 Reports</button>
                         <button class="nav-tab" data-tab="lists">📅 Lists</button>
                     </div>
 
@@ -152,6 +165,27 @@ class DormInspectorApp {
                                     <option value="">Select Inspector</option>
                                     ${INSPECTOR_NAMES.map(name => `<option value="${name}">${name}</option>`).join('')}
                                 </select>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group">
+                                    <label class="form-label">Shift</label>
+                                    <select id="room-shift" class="form-select">
+                                        <option value="">Select Shift</option>
+                                        <option value="S">S - Swing</option>
+                                        <option value="T">T - Day</option>
+                                        <option value="R">R - Relief</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">Gender</label>
+                                    <select id="room-gender" class="form-select">
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div class="form-group">
@@ -176,11 +210,28 @@ class DormInspectorApp {
                     <!-- History Section -->
                     <div id="history-section" class="section">
                         <div class="card">
-                            <h2 style="margin-bottom: 16px;">Recent Inspections</h2>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+                                <h2 style="margin: 0;">Inspection History</h2>
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <button id="export-excel-btn" class="btn btn-secondary btn-small" style="display: flex; align-items: center; gap: 6px;">
+                                        📊 Export Excel
+                                    </button>
+                                    <div style="display: flex; gap: 4px; background: var(--surface-light); padding: 4px; border-radius: 8px;">
+                                        <button class="view-mode-btn active" data-view="card" title="Card View">🎴</button>
+                                        <button class="view-mode-btn" data-view="list" title="List View">📋</button>
+                                        <button class="view-mode-btn" data-view="table" title="Table View">📊</button>
+                                    </div>
+                                </div>
+                            </div>
                             <div id="inspections-list">
                                 ${this.renderInspectionsList()}
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Reports Section -->
+                    <div id="reports-section" class="section">
+                        <div id="reports-container"></div>
                     </div>
 
                     <!-- Lists Section -->
@@ -217,6 +268,15 @@ class DormInspectorApp {
         const scoreContainer = document.getElementById('score-container');
         this.scoreDisplay = new ScoreDisplay(scoreContainer);
         this.scoreDisplay.render();
+
+        // Initialize reports component
+        const reportsContainer = document.getElementById('reports-container');
+        this.reportsComponent = new ReportsComponent(reportsContainer);
+        this.reportsComponent.render();
+
+        // Setup global functions for onclick handlers
+        window.editInspection = (id) => this.editInspection(id);
+        window.deleteInspection = (id) => this.deleteInspection(id);
     }
 
     generateRoomOptions() {
@@ -252,6 +312,19 @@ class DormInspectorApp {
         // Voice button
         document.getElementById('voice-btn').addEventListener('click', () => {
             voiceService.toggle();
+        });
+
+        // View mode buttons
+        document.querySelectorAll('.view-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const view = btn.getAttribute('data-view');
+                this.switchViewMode(view);
+            });
+        });
+
+        // Export Excel button
+        document.getElementById('export-excel-btn').addEventListener('click', async () => {
+            await this.exportToExcel();
         });
     }
 
@@ -300,6 +373,8 @@ class DormInspectorApp {
         const roomNumber = document.getElementById('room-number').value;
         const inspectorName = document.getElementById('inspector-name').value;
         const inspectionDate = document.getElementById('inspection-date').value;
+        const shift = document.getElementById('room-shift').value;
+        const gender = document.getElementById('room-gender').value;
         const demerits = this.demeritGrid.getSelected();
         const score = this.scoreDisplay.getResult();
 
@@ -313,6 +388,20 @@ class DormInspectorApp {
             status: score.status,
             timestamp: new Date().toISOString()
         };
+
+        // Save room properties to store
+        if (roomNumber && (shift || gender)) {
+            const roomProps = store.state.roomProperties[roomNumber] || {};
+            if (shift) roomProps.shift = shift;
+            if (gender) roomProps.gender = gender;
+            store.setState({
+                roomProperties: {
+                    ...store.state.roomProperties,
+                    [roomNumber]: roomProps
+                }
+            });
+            storageService.save('roomProperties', store.state.roomProperties);
+        }
 
         // Validate
         const validation = validateInspection(inspection);
@@ -382,33 +471,174 @@ class DormInspectorApp {
             `;
         }
 
-        return inspections.map(inspection => `
-            <div class="card" style="margin-bottom: 12px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong style="font-size: 18px;">Room ${inspection.roomNumber}</strong>
-                        <div style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">
-                            ${inspection.inspectorName} • ${inspection.inspectionDate}
+        // Render based on view mode
+        if (this.viewMode === 'card') {
+            return this.inspectionCard.renderList(inspections);
+        } else if (this.viewMode === 'table') {
+            return this.inspectionTable.render(inspections);
+        } else {
+            // List view (simple)
+            return inspections.map(inspection => `
+                <div class="card" style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="font-size: 18px;">Room ${inspection.roomNumber}</strong>
+                            <div style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">
+                                ${inspection.inspectorName} • ${inspection.inspectionDate}
+                            </div>
                         </div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 24px; font-weight: 800;">${inspection.score} pts</div>
-                        <div style="
-                            display: inline-block;
-                            padding: 4px 12px;
-                            border-radius: 6px;
-                            font-size: 12px;
-                            font-weight: 700;
-                            background: ${inspection.status === 'OUTSTANDING' ? '#3b82f6' :
-                                        inspection.status === 'PASSED' ? '#10b981' : '#ef4444'};
-                            color: white;
-                        ">
-                            ${inspection.status}
+                        <div style="text-align: right;">
+                            <div style="font-size: 24px; font-weight: 800;">${inspection.score} pts</div>
+                            <div style="
+                                display: inline-block;
+                                padding: 4px 12px;
+                                border-radius: 6px;
+                                font-size: 12px;
+                                font-weight: 700;
+                                background: ${inspection.status === 'OUTSTANDING' ? '#3b82f6' :
+                                            inspection.status === 'PASSED' ? '#10b981' : '#ef4444'};
+                                color: white;
+                            ">
+                                ${inspection.status}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        `).join('');
+            `).join('');
+        }
+    }
+
+    switchViewMode(view) {
+        this.viewMode = view;
+
+        // Update button states
+        document.querySelectorAll('.view-mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-view') === view);
+        });
+
+        // Re-render inspections list
+        const listEl = document.getElementById('inspections-list');
+        if (listEl) {
+            listEl.innerHTML = this.renderInspectionsList();
+        }
+    }
+
+    async exportToExcel() {
+        const inspections = store.getInspections();
+
+        if (inspections.length === 0) {
+            alert('No inspections to export!');
+            return;
+        }
+
+        try {
+            await exportService.exportToExcel(inspections);
+            alert('✅ Excel file downloaded successfully!');
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('❌ Export failed: ' + error.message);
+        }
+    }
+
+    editInspection(id) {
+        const inspection = store.getInspections().find(i => i.id === id);
+        if (!inspection) {
+            alert('Inspection not found!');
+            return;
+        }
+
+        // Create modal if not exists
+        if (!this.editModal) {
+            this.editModal = new EditInspectionModal();
+        }
+
+        // Set callback for saving
+        this.editModal.onSave = async (updatedInspection) => {
+            try {
+                // Update in Firebase if connected
+                if (store.state.isConnected) {
+                    await firebaseService.updateInspection(id, updatedInspection);
+                }
+
+                // Update in store
+                store.updateInspection(id, updatedInspection);
+
+                // Save to local storage
+                storageService.save('inspections', store.getInspections());
+
+                alert('✅ Inspection updated successfully!');
+
+                // Re-render list
+                const listEl = document.getElementById('inspections-list');
+                if (listEl) {
+                    listEl.innerHTML = this.renderInspectionsList();
+                }
+
+                // Update reports if on reports tab
+                if (this.reportsComponent && store.state.activeTab === 'reports') {
+                    this.reportsComponent.render();
+                }
+            } catch (error) {
+                console.error('Update failed:', error);
+                alert('❌ Failed to update inspection: ' + error.message);
+            }
+        };
+
+        // Show modal with inspection data
+        this.editModal.show(inspection);
+    }
+
+    deleteInspection(id) {
+        const inspection = store.getInspections().find(i => i.id === id);
+        if (!inspection) {
+            alert('Inspection not found!');
+            return;
+        }
+
+        const confirmed = confirm(
+            `Are you sure you want to delete this inspection?\n\n` +
+            `Room: ${inspection.roomNumber}\n` +
+            `Date: ${inspection.inspectionDate}\n` +
+            `Score: ${inspection.score}\n` +
+            `Status: ${inspection.status}`
+        );
+
+        if (!confirmed) return;
+
+        try {
+            // Delete from Firebase if connected
+            if (store.state.isConnected) {
+                firebaseService.deleteInspection(id);
+            }
+
+            // Remove from store
+            store.removeInspection(id);
+
+            // Save to local storage
+            storageService.save('inspections', store.getInspections());
+
+            // Success feedback
+            const settings = store.getSettings();
+            if (settings.hapticFeedback) {
+                vibrate([100]);
+            }
+
+            alert('✅ Inspection deleted successfully!');
+
+            // Re-render list
+            const listEl = document.getElementById('inspections-list');
+            if (listEl) {
+                listEl.innerHTML = this.renderInspectionsList();
+            }
+
+            // Update reports if on reports tab
+            if (this.reportsComponent && store.state.activeTab === 'reports') {
+                this.reportsComponent.render();
+            }
+        } catch (error) {
+            console.error('Delete failed:', error);
+            alert('❌ Failed to delete inspection: ' + error.message);
+        }
     }
 
     applyTheme(theme) {
