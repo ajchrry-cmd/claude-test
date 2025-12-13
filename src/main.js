@@ -117,6 +117,9 @@ class DormInspectorApp {
             // Subscribe to state changes
             this.setupStateSubscriptions();
 
+            // Populate room properties list
+            this.updateRoomPropertiesList();
+
             this.initialized = true;
             console.log('✅ Dorm Inspector initialized successfully!');
         } catch (error) {
@@ -359,7 +362,7 @@ class DormInspectorApp {
                             <div>
                                 <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Configured Rooms</h3>
                                 <div id="room-properties-list">
-                                    ${this.renderRoomPropertiesList()}
+                                    <!-- Will be populated after initialization -->
                                 </div>
                             </div>
                         </div>
@@ -967,6 +970,13 @@ class DormInspectorApp {
         `;
     }
 
+    updateRoomPropertiesList() {
+        const listEl = document.getElementById('room-properties-list');
+        if (listEl) {
+            listEl.innerHTML = this.renderRoomPropertiesList();
+        }
+    }
+
     assignRoomProperties() {
         const roomNumber = document.getElementById('setup-room-number')?.value;
         const shift = document.getElementById('setup-shift')?.value;
@@ -1000,10 +1010,7 @@ class DormInspectorApp {
         document.getElementById('setup-gender').value = '';
 
         // Refresh list
-        const listEl = document.getElementById('room-properties-list');
-        if (listEl) {
-            listEl.innerHTML = this.renderRoomPropertiesList();
-        }
+        this.updateRoomPropertiesList();
 
         alert(`✅ Properties assigned to Room ${roomNumber}`);
     }
@@ -1019,10 +1026,7 @@ class DormInspectorApp {
         storageService.save('roomProperties', roomProperties);
 
         // Refresh list
-        const listEl = document.getElementById('room-properties-list');
-        if (listEl) {
-            listEl.innerHTML = this.renderRoomPropertiesList();
-        }
+        this.updateRoomPropertiesList();
 
         alert(`✅ Properties cleared for Room ${roomNumber}`);
     }
