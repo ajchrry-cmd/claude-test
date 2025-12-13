@@ -170,6 +170,7 @@ class DormInspectorApp {
                         <button class="nav-tab" data-tab="history">📋 History</button>
                         <button class="nav-tab" data-tab="reports">📊 Reports</button>
                         <button class="nav-tab" data-tab="lists">📅 Lists</button>
+                        <button class="nav-tab" data-tab="room-setup">🏠 Room Setup</button>
                     </div>
 
                     <!-- Inspect Section -->
@@ -296,6 +297,72 @@ class DormInspectorApp {
                     <!-- Lists Section -->
                     <div id="lists-section" class="section">
                         <div id="room-grid-container"></div>
+                    </div>
+
+                    <!-- Room Setup Section -->
+                    <div id="room-setup-section" class="section">
+                        <div class="card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h2 style="margin: 0;">Room Property Assignment</h2>
+                                <button class="btn btn-primary btn-small" onclick="window.openRoomManagement()">
+                                    🏠 Bulk Room Management
+                                </button>
+                            </div>
+
+                            <div style="background: var(--primary-light); border-left: 4px solid var(--primary); padding: 16px; border-radius: 8px; margin-bottom: 24px;">
+                                <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--primary); margin-bottom: 8px;">
+                                    ℹ️ Quick Room Assignment
+                                </div>
+                                <div style="font-size: 14px; color: var(--text-secondary);">
+                                    Assign shift and gender properties to individual rooms. For bulk operations, use the Bulk Room Management button above.
+                                </div>
+                            </div>
+
+                            <!-- Quick Assignment Form -->
+                            <div style="background: var(--surface-light); padding: 20px; border-radius: 8px; margin-bottom: 24px;">
+                                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Assign Room Properties</h3>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 12px; align-items: end;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="form-label">Room Number</label>
+                                        <select id="setup-room-number" class="form-select">
+                                            <option value="">Select Room</option>
+                                            ${this.generateRoomOptions()}
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="form-label">Shift</label>
+                                        <select id="setup-shift" class="form-select">
+                                            <option value="">Select Shift</option>
+                                            <option value="1st">1st Shift</option>
+                                            <option value="2nd">2nd Shift</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label class="form-label">Gender</label>
+                                        <select id="setup-gender" class="form-select">
+                                            <option value="">Select Gender</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                        </select>
+                                    </div>
+
+                                    <button class="btn btn-primary" onclick="window.assignRoomProperties()" style="height: 44px;">
+                                        ✓ Assign
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Current Room Properties -->
+                            <div>
+                                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 16px;">Configured Rooms</h3>
+                                <div id="room-properties-list">
+                                    ${this.renderRoomPropertiesList()}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </main>
 
@@ -432,6 +499,10 @@ class DormInspectorApp {
         window.saveCurrentAsTemplate = () => this.saveCurrentAsTemplate();
         window.loadTemplate = (index) => this.loadTemplate(index);
         window.deleteTemplate = (index) => this.deleteTemplate(index);
+
+        // Room Setup functions
+        window.assignRoomProperties = () => this.assignRoomProperties();
+        window.clearRoomProperty = (roomNum) => this.clearRoomProperty(roomNum);
     }
 
     generateRoomOptions() {
@@ -850,6 +921,110 @@ class DormInspectorApp {
             console.error('Export failed:', error);
             alert('❌ Export failed: ' + error.message);
         }
+    }
+
+    renderRoomPropertiesList() {
+        const roomProperties = store.getRoomProperties();
+        const rooms = Object.keys(roomProperties).sort((a, b) => parseInt(a) - parseInt(b));
+
+        if (rooms.length === 0) {
+            return `
+                <div class="empty-state">
+                    <div class="empty-state-icon">🏠</div>
+                    <div>No room properties configured yet. Assign properties above or use Bulk Room Management.</div>
+                </div>
+            `;
+        }
+
+        return `
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
+                ${rooms.map(roomNum => {
+                    const props = roomProperties[roomNum];
+                    return `
+                        <div style="
+                            background: var(--surface-light);
+                            padding: 12px;
+                            border-radius: 8px;
+                            border: 2px solid var(--border);
+                            position: relative;
+                        ">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                <div style="font-size: 18px; font-weight: 700; color: var(--text-primary);">
+                                    Room ${roomNum}
+                                </div>
+                                <button onclick="window.clearRoomProperty('${roomNum}')" class="btn btn-danger btn-small" style="padding: 4px 8px; font-size: 12px;" title="Clear properties">
+                                    ✕
+                                </button>
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-secondary);">
+                                ${props.gender ? `<div>👤 ${props.gender}</div>` : ''}
+                                ${props.shift ? `<div>🕐 ${props.shift} Shift</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    assignRoomProperties() {
+        const roomNumber = document.getElementById('setup-room-number')?.value;
+        const shift = document.getElementById('setup-shift')?.value;
+        const gender = document.getElementById('setup-gender')?.value;
+
+        if (!roomNumber) {
+            alert('Please select a room number');
+            return;
+        }
+
+        if (!shift && !gender) {
+            alert('Please select at least one property (shift or gender)');
+            return;
+        }
+
+        const roomProperties = store.getRoomProperties();
+
+        if (!roomProperties[roomNumber]) {
+            roomProperties[roomNumber] = {};
+        }
+
+        if (shift) roomProperties[roomNumber].shift = shift;
+        if (gender) roomProperties[roomNumber].gender = gender;
+
+        store.setState({ roomProperties });
+        storageService.save('roomProperties', roomProperties);
+
+        // Clear form
+        document.getElementById('setup-room-number').value = '';
+        document.getElementById('setup-shift').value = '';
+        document.getElementById('setup-gender').value = '';
+
+        // Refresh list
+        const listEl = document.getElementById('room-properties-list');
+        if (listEl) {
+            listEl.innerHTML = this.renderRoomPropertiesList();
+        }
+
+        alert(`✅ Properties assigned to Room ${roomNumber}`);
+    }
+
+    clearRoomProperty(roomNumber) {
+        const confirmed = confirm(`Clear properties for Room ${roomNumber}?`);
+        if (!confirmed) return;
+
+        const roomProperties = store.getRoomProperties();
+        delete roomProperties[roomNumber];
+
+        store.setState({ roomProperties });
+        storageService.save('roomProperties', roomProperties);
+
+        // Refresh list
+        const listEl = document.getElementById('room-properties-list');
+        if (listEl) {
+            listEl.innerHTML = this.renderRoomPropertiesList();
+        }
+
+        alert(`✅ Properties cleared for Room ${roomNumber}`);
     }
 
     editInspection(id) {
